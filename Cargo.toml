@@ -1,0 +1,32 @@
+[package]
+name = "simple-crosshair-overlay"
+version = "0.1.0"
+authors = ["Michael Ripley <zkxs00@gmail.com"]
+description = "A simple native crosshair overlay"
+edition = "2021"
+license = "GPL-3.0-only"
+readme = "README.md"
+homepage = "https://github.com/zkxs/simple-crosshair-overlay"
+repository = "https://github.com/zkxs/simple-crosshair-overlay"
+documentation = "https://github.com/zkxs/simple-crosshair-overlay"
+keywords = ["application", "overlay", "window", "crosshair", "center", "dot"]
+categories = []
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[dependencies]
+tray-icon = "0.6"
+winit = "0.28"
+softbuffer = "0.3"
+serde = { version = "1", features = ["derive"] }
+toml = "0.7"
+directories = "5"
+lazy_static = "1"
+
+[target.'cfg(target_os = "windows")'.build-dependencies]
+winres = "0.1"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "0.16" # must use this old version of gtk because it's what tray-icon 0.6 needs
