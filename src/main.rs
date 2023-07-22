@@ -20,7 +20,7 @@ use winit::event_loop::{DeviceEventFilter, EventLoop};
 use winit::platform::windows::WindowBuilderExtWindows;
 use winit::window::{Window, WindowBuilder, WindowLevel};
 
-use crate::settings::Settings;
+use crate::settings::{LoadedSettings, SavableSettings};
 
 mod settings;
 mod custom_serializer;
@@ -40,14 +40,10 @@ fn main() {
         Ok(settings) => settings,
         Err(e) => {
             eprintln!("Error loading settings at {}: {}", CONFIG_PATH.display(), e);
-            Settings::default()
+            LoadedSettings::default()
         }
     };
     let mut settings = Box::new(settings);
-
-    // premultiply alpha on Windows. No idea if other platforms need this done.
-    #[cfg(target_os = "windows")] let color = premultiply_alpha(settings.color);
-    #[cfg(not(target_os = "windows"))] let color = settings.color;
 
     let tray_menu = Menu::new();
 
@@ -123,7 +119,7 @@ fn main() {
                     window.set_inner_size(settings.size());
                 }
 
-                draw_window(&mut surface, &settings, color)
+                draw_window(&mut surface, &settings)
             }
             Event::DeviceEvent { event: Key(keyboard_input), device_id: _device_id } => {
                 if let Some(keycode) = keyboard_input.virtual_keycode {
@@ -140,7 +136,7 @@ fn main() {
                         match keycode {
                             VirtualKeyCode::Up => {
                                 if keyboard_input.state == ElementState::Pressed {
-                                    settings.window_dy -= speed_ramp(held_count) as i32;
+                                    settings.savable.window_dy -= speed_ramp(held_count) as i32;
                                     on_window_position_change(&window, &settings);
                                     held_count += 1;
                                 } else {
@@ -149,7 +145,7 @@ fn main() {
                             }
                             VirtualKeyCode::Down => {
                                 if keyboard_input.state == ElementState::Pressed {
-                                    settings.window_dy += speed_ramp(held_count) as i32;
+                                    settings.savable.window_dy += speed_ramp(held_count) as i32;
                                     on_window_position_change(&window, &settings);
                                     held_count += 1;
                                 } else {
@@ -158,7 +154,7 @@ fn main() {
                             }
                             VirtualKeyCode::Left => {
                                 if keyboard_input.state == ElementState::Pressed {
-                                    settings.window_dx -= speed_ramp(held_count) as i32;
+                                    settings.savable.window_dx -= speed_ramp(held_count) as i32;
                                     on_window_position_change(&window, &settings);
                                     held_count += 1;
                                 } else {
@@ -167,7 +163,7 @@ fn main() {
                             }
                             VirtualKeyCode::Right => {
                                 if keyboard_input.state == ElementState::Pressed {
-                                    settings.window_dx += speed_ramp(held_count) as i32;
+                                    settings.savable.window_dx += speed_ramp(held_count) as i32;
                                     on_window_position_change(&window, &settings);
                                     held_count += 1;
                                 } else {
@@ -176,9 +172,9 @@ fn main() {
                             }
                             VirtualKeyCode::PageUp => {
                                 if keyboard_input.state == ElementState::Pressed {
-                                    settings.window_height += speed_ramp(held_count);
-                                    settings.window_width = settings.window_height;
-                                    on_window_size_or_position_change(&window, &settings, &mut surface, color);
+                                    settings.savable.window_height += speed_ramp(held_count);
+                                    settings.savable.window_width = settings.savable.window_height;
+                                    on_window_size_or_position_change(&window, &settings);
                                     held_count += 1;
                                 } else {
                                     held_count = 0;
@@ -186,9 +182,9 @@ fn main() {
                             }
                             VirtualKeyCode::PageDown => {
                                 if keyboard_input.state == ElementState::Pressed {
-                                    settings.window_height = settings.window_height.checked_sub(speed_ramp(held_count)).unwrap_or(1).max(1);
-                                    settings.window_width = settings.window_height;
-                                    on_window_size_or_position_change(&window, &settings, &mut surface, color);
+                                    settings.savable.window_height = settings.savable.window_height.checked_sub(speed_ramp(held_count)).unwrap_or(1).max(1);
+                                    settings.savable.window_width = settings.savable.window_height;
+                                    on_window_size_or_position_change(&window, &settings);
                                     held_count += 1;
                                 } else {
                                     held_count = 0;
@@ -250,8 +246,8 @@ fn main() {
                     break;
                 }
                 id if id == reset_button.id() => {
-                    *settings = Settings::default();
-                    on_window_size_or_position_change(&window, &settings, &mut surface, color);
+                    *settings = LoadedSettings::default();
+                    on_window_size_or_position_change(&window, &settings);
                 }
                 _ => (),
             }
@@ -260,7 +256,7 @@ fn main() {
 }
 
 /// Handles both window size and position change side effects.
-fn on_window_size_or_position_change(window: &Window, settings: &Settings, _surface: &mut Surface, _color: u32) {
+fn on_window_size_or_position_change(window: &Window, settings: &LoadedSettings) {
     window.set_inner_size(settings.size());
     window.set_outer_position(compute_window_coordinates(window, settings));
 
@@ -271,12 +267,10 @@ fn on_window_size_or_position_change(window: &Window, settings: &Settings, _surf
         1. Temporarily size the window to full screen, thereby eliminating all but the redraws
         2. Stop relying on key repeat and instead remember key state and use ticks for your update intervals
     */
-
-    //draw_window(surface, settings, color);
 }
 
 /// Slightly cheaper special case that can only handle window position changes. Do not use this if the window size may have changed.
-fn on_window_position_change(window: &Window, settings: &Settings) {
+fn on_window_position_change(window: &Window, settings: &LoadedSettings) {
     window.set_outer_position(compute_window_coordinates(window, settings));
 }
 
@@ -300,26 +294,26 @@ fn speed_ramp(held_count: u32) -> u32 {
 }
 
 /// Compute the correct coordinates of the top-left of the window in order to center the crosshair in the primary monitor
-fn compute_window_coordinates(window: &Window, settings: &Settings) -> PhysicalPosition<i32> {
+fn compute_window_coordinates(window: &Window, settings: &LoadedSettings) -> PhysicalPosition<i32> {
     let monitor = window.primary_monitor().unwrap();
     let PhysicalPosition { x: monitor_x, y: monitor_y } = monitor.position();
     let PhysicalSize { width: monitor_width, height: monitor_height } = monitor.size();
     let monitor_width = i32::try_from(monitor_width).unwrap();
     let monitor_height = i32::try_from(monitor_height).unwrap();
-    let window_width = settings.window_width as i32;
-    let window_height = settings.window_height as i32;
+    let window_width = settings.savable.window_width as i32;
+    let window_height = settings.savable.window_height as i32;
     let monitor_center_x = (monitor_width - monitor_x) / 2;
     let monitor_center_y = (monitor_height - monitor_y) / 2;
-    let window_x = monitor_center_x - (window_width / 2) + settings.window_dx;
-    let window_y = monitor_center_y - (window_height / 2) + settings.window_dy;
+    let window_x = monitor_center_x - (window_width / 2) + settings.savable.window_dx;
+    let window_y = monitor_center_y - (window_height / 2) + settings.savable.window_dy;
     PhysicalPosition::new(window_x, window_y)
 }
 
 /// draws a simple red crosshair
-fn draw_window(surface: &mut Surface, settings: &Settings, color: u32) {
+fn draw_window(surface: &mut Surface, settings: &LoadedSettings) {
     surface.resize(
-        NonZeroU32::new(settings.window_width).unwrap(),
-        NonZeroU32::new(settings.window_height).unwrap(),
+        NonZeroU32::new(settings.savable.window_width).unwrap(),
+        NonZeroU32::new(settings.savable.window_height).unwrap(),
     ).unwrap();
 
     let mut buffer = surface.buffer_mut().unwrap();
@@ -327,38 +321,38 @@ fn draw_window(surface: &mut Surface, settings: &Settings, color: u32) {
     if buffer.age() == 0 {
         const FULL_ALPHA: u32 = 0x00000000;
 
-        let width = settings.window_width as usize;
-        let height = settings.window_height as usize;
+        let width = settings.savable.window_width as usize;
+        let height = settings.savable.window_height as usize;
 
         if width <= 2 || height <= 2 {
             // edge case where there simply aren't enough pixels to draw a crosshair, so we just fall back to a dot
-            buffer.fill(color);
+            buffer.fill(settings.color);
         } else {
             buffer.fill(FULL_ALPHA);
 
             // horizontal line
             let start = width * (height / 2);
             for x in start..start + width {
-                buffer[x] = color;
+                buffer[x] = settings.color;
             }
 
             // second horizontal line (if size is even we need this for centering)
             if height % 2 == 0 {
                 let start = start - width;
                 for x in start..start + width {
-                    buffer[x] = color;
+                    buffer[x] = settings.color;
                 }
             }
 
             // vertical line
             for y in 0..height {
-                buffer[width * y + width / 2] = color;
+                buffer[width * y + width / 2] = settings.color;
             }
 
             // second vertical line (if size is even we need this for centering)
             if width % 2 == 0 {
                 for y in 0..height {
-                    buffer[width * y + width / 2 - 1] = color;
+                    buffer[width * y + width / 2 - 1] = settings.color;
                 }
             }
         }
@@ -367,14 +361,15 @@ fn draw_window(surface: &mut Surface, settings: &Settings, color: u32) {
     buffer.present().unwrap();
 }
 
-fn load_settings() -> Result<Settings, String> {
+fn load_settings() -> Result<LoadedSettings, String> {
     fs::create_dir_all(CONFIG_PATH.as_path().parent().unwrap()).map_err(|e| format!("{e:?}"))?;
     fs::read_to_string(CONFIG_PATH.as_path()).map_err(|e| format!("{e:?}"))
-        .and_then(|string| toml::from_str(&string).map_err(|e| format!("{e:?}")))
+        .and_then(|string| toml::from_str::<SavableSettings>(&string).map_err(|e| format!("{e:?}")))
+        .and_then(|settings| settings.load())
 }
 
-fn save_settings(settings: &Settings) -> Result<(), String> {
-    let serialized_config = toml::to_string(settings).expect("failed to serialize settings");
+fn save_settings(settings: &LoadedSettings) -> Result<(), String> {
+    let serialized_config = toml::to_string(&settings.savable).expect("failed to serialize settings");
     fs::write(CONFIG_PATH.as_path(), serialized_config).map_err(|e| format!("{e:?}"))
 }
 
@@ -410,7 +405,7 @@ fn get_icon_rgba() -> Vec<u8> {
     icon_rgba
 }
 
-fn init_gui(event_loop: &EventLoop<()>, settings: &Settings) -> Window {
+fn init_gui(event_loop: &EventLoop<()>, settings: &LoadedSettings) -> Window {
     let window = WindowBuilder::new()
         .with_visible(false) // things get very buggy on Windows if you default the window to invisible...
         .with_transparent(true)
@@ -442,19 +437,3 @@ fn init_gui(event_loop: &EventLoop<()>, settings: &Settings) -> Window {
     window
 }
 
-fn premultiply_alpha(argb_color: u32) -> u32 {
-    let [b, g, r, a] = argb_color.to_le_bytes();
-
-    const MAX_COLOR: u16 = 255;
-
-    let b = b as u16;
-    let g = g as u16;
-    let r = r as u16;
-    let alpha = a as u16; // we're reusing `a` later, so give alpha a special name
-
-    let b = (b * alpha / MAX_COLOR) as u8;
-    let g = (g * alpha / MAX_COLOR) as u8;
-    let r = (r * alpha / MAX_COLOR) as u8;
-
-    u32::from_le_bytes([b, g, r, a])
-}
