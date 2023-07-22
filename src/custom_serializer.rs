@@ -1,3 +1,7 @@
+// This file is part of simple-crosshair-overlay and is licenced under the GNU GPL v3.0.
+// See LICENSE file for full text.
+// Copyright © 2023 Michael Ripley
+
 /// Serialize a u32-packed ARGB color as a hex string, because editing a decimal u32 by hand is fucked.
 pub mod argb_color {
     use serde::{Deserialize, Deserializer, Serializer};

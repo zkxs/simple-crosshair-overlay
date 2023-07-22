@@ -24,6 +24,7 @@ serde = { version = "1", features = ["derive"] }
 toml = "0.7"
 directories = "5"
 lazy_static = "1"
+png = "0.17"
 
 [target.'cfg(target_os = "windows")'.build-dependencies]
 winres = "0.1"

@@ -1460,6 +1460,7 @@ dependencies = [
  "directories",
  "gtk",
  "lazy_static",
+ "png",
  "serde",
  "softbuffer",
  "toml 0.7.6",

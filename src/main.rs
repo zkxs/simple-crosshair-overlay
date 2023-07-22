@@ -171,7 +171,7 @@ fn main() {
                                 }
                             }
                             VirtualKeyCode::PageUp => {
-                                if keyboard_input.state == ElementState::Pressed {
+                                if settings.is_scalable() && keyboard_input.state == ElementState::Pressed {
                                     settings.savable.window_height += speed_ramp(held_count);
                                     settings.savable.window_width = settings.savable.window_height;
                                     on_window_size_or_position_change(&window, &settings);
@@ -181,7 +181,7 @@ fn main() {
                                 }
                             }
                             VirtualKeyCode::PageDown => {
-                                if keyboard_input.state == ElementState::Pressed {
+                                if settings.is_scalable() && keyboard_input.state == ElementState::Pressed {
                                     settings.savable.window_height = settings.savable.window_height.checked_sub(speed_ramp(held_count)).unwrap_or(1).max(1);
                                     settings.savable.window_width = settings.savable.window_height;
                                     on_window_size_or_position_change(&window, &settings);
@@ -309,50 +309,58 @@ fn compute_window_coordinates(window: &Window, settings: &LoadedSettings) -> Phy
     PhysicalPosition::new(window_x, window_y)
 }
 
-/// draws a simple red crosshair
+/// draws a crosshair image, or a simple red crosshair if no image is set
 fn draw_window(surface: &mut Surface, settings: &LoadedSettings) {
+    let PhysicalSize { width: window_width, height: window_height } = settings.size();
     surface.resize(
-        NonZeroU32::new(settings.savable.window_width).unwrap(),
-        NonZeroU32::new(settings.savable.window_height).unwrap(),
+        NonZeroU32::new(window_width).unwrap(),
+        NonZeroU32::new(window_height).unwrap(),
     ).unwrap();
 
     let mut buffer = surface.buffer_mut().unwrap();
 
     if buffer.age() == 0 {
-        const FULL_ALPHA: u32 = 0x00000000;
-
-        let width = settings.savable.window_width as usize;
-        let height = settings.savable.window_height as usize;
-
-        if width <= 2 || height <= 2 {
-            // edge case where there simply aren't enough pixels to draw a crosshair, so we just fall back to a dot
-            buffer.fill(settings.color);
+        if let Some(image) = &settings.image {
+            // draw our image
+            buffer.copy_from_slice(image.data.as_slice());
         } else {
-            buffer.fill(FULL_ALPHA);
+            // draw a generated crosshair
 
-            // horizontal line
-            let start = width * (height / 2);
-            for x in start..start + width {
-                buffer[x] = settings.color;
-            }
+            const FULL_ALPHA: u32 = 0x00000000;
 
-            // second horizontal line (if size is even we need this for centering)
-            if height % 2 == 0 {
-                let start = start - width;
+            let width = settings.savable.window_width as usize;
+            let height = settings.savable.window_height as usize;
+
+            if width <= 2 || height <= 2 {
+                // edge case where there simply aren't enough pixels to draw a crosshair, so we just fall back to a dot
+                buffer.fill(settings.color);
+            } else {
+                buffer.fill(FULL_ALPHA);
+
+                // horizontal line
+                let start = width * (height / 2);
                 for x in start..start + width {
                     buffer[x] = settings.color;
                 }
-            }
 
-            // vertical line
-            for y in 0..height {
-                buffer[width * y + width / 2] = settings.color;
-            }
+                // second horizontal line (if size is even we need this for centering)
+                if height % 2 == 0 {
+                    let start = start - width;
+                    for x in start..start + width {
+                        buffer[x] = settings.color;
+                    }
+                }
 
-            // second vertical line (if size is even we need this for centering)
-            if width % 2 == 0 {
+                // vertical line
                 for y in 0..height {
-                    buffer[width * y + width / 2 - 1] = settings.color;
+                    buffer[width * y + width / 2] = settings.color;
+                }
+
+                // second vertical line (if size is even we need this for centering)
+                if width % 2 == 0 {
+                    for y in 0..height {
+                        buffer[width * y + width / 2 - 1] = settings.color;
+                    }
                 }
             }
         }
