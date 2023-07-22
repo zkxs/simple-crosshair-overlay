@@ -28,7 +28,7 @@ impl Default for Settings {
             window_dy: 0,
             window_width: 6,
             window_height: 6,
-            color: 0xFFFF0000, // red
+            color: 0xB2FF0000, // 70% alpha red
         }
     }
 }

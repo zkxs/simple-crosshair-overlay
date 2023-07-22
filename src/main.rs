@@ -45,6 +45,10 @@ fn main() {
     };
     let mut settings = Box::new(settings);
 
+    // premultiply alpha on Windows. No idea if other platforms need this done.
+    #[cfg(target_os = "windows")] let color = premultiply_alpha(settings.color);
+    #[cfg(not(target_os = "windows"))] let color = settings.color;
+
     let tray_menu = Menu::new();
 
     // on non-mac just append directly to the menu itself
@@ -105,6 +109,7 @@ fn main() {
     // remember some application state that's NOT part of our saved config
     let mut window_visible = true;
     let mut control_pressed = false;
+    let mut held_count: u32 = 0;
 
     // pass control to the event loop
     event_loop.run(move |event, _, control_flow| {
@@ -118,7 +123,7 @@ fn main() {
                     window.set_inner_size(settings.size());
                 }
 
-                draw_window(&mut surface, &settings)
+                draw_window(&mut surface, &settings, color)
             }
             Event::DeviceEvent { event: Key(keyboard_input), device_id: _device_id } => {
                 if let Some(keycode) = keyboard_input.virtual_keycode {
@@ -130,73 +135,99 @@ fn main() {
                         _ => ()
                     }
 
-                    if keyboard_input.state == ElementState::Pressed {
-                        if adjust_button.is_checked() {
-                            // adjust button IS checked
-                            match keycode {
-                                VirtualKeyCode::Up => {
-                                    settings.window_dy -= 1;
+                    if adjust_button.is_checked() {
+                        // adjust button IS checked
+                        match keycode {
+                            VirtualKeyCode::Up => {
+                                if keyboard_input.state == ElementState::Pressed {
+                                    settings.window_dy -= speed_ramp(held_count) as i32;
                                     on_window_position_change(&window, &settings);
+                                    held_count += 1;
+                                } else {
+                                    held_count = 0;
                                 }
-                                VirtualKeyCode::Down => {
-                                    settings.window_dy += 1;
+                            }
+                            VirtualKeyCode::Down => {
+                                if keyboard_input.state == ElementState::Pressed {
+                                    settings.window_dy += speed_ramp(held_count) as i32;
                                     on_window_position_change(&window, &settings);
+                                    held_count += 1;
+                                } else {
+                                    held_count = 0;
                                 }
-                                VirtualKeyCode::Left => {
-                                    settings.window_dx -= 1;
+                            }
+                            VirtualKeyCode::Left => {
+                                if keyboard_input.state == ElementState::Pressed {
+                                    settings.window_dx -= speed_ramp(held_count) as i32;
                                     on_window_position_change(&window, &settings);
+                                    held_count += 1;
+                                } else {
+                                    held_count = 0;
                                 }
-                                VirtualKeyCode::Right => {
-                                    settings.window_dx += 1;
+                            }
+                            VirtualKeyCode::Right => {
+                                if keyboard_input.state == ElementState::Pressed {
+                                    settings.window_dx += speed_ramp(held_count) as i32;
                                     on_window_position_change(&window, &settings);
+                                    held_count += 1;
+                                } else {
+                                    held_count = 0;
                                 }
-                                VirtualKeyCode::PageUp => {
-                                    settings.window_width += 1;
-                                    settings.window_height = settings.window_width;
-                                    on_window_size_or_position_change(&window, &settings);
+                            }
+                            VirtualKeyCode::PageUp => {
+                                if keyboard_input.state == ElementState::Pressed {
+                                    settings.window_height += speed_ramp(held_count);
+                                    settings.window_width = settings.window_height;
+                                    on_window_size_or_position_change(&window, &settings, &mut surface, color);
+                                    held_count += 1;
+                                } else {
+                                    held_count = 0;
                                 }
-                                VirtualKeyCode::PageDown => {
-                                    if settings.window_width > 1 {
-                                        settings.window_width -= 1;
-                                        settings.window_height = settings.window_width;
-                                        on_window_size_or_position_change(&window, &settings);
-                                    }
+                            }
+                            VirtualKeyCode::PageDown => {
+                                if keyboard_input.state == ElementState::Pressed {
+                                    settings.window_height = settings.window_height.checked_sub(speed_ramp(held_count)).unwrap_or(1).max(1);
+                                    settings.window_width = settings.window_height;
+                                    on_window_size_or_position_change(&window, &settings, &mut surface, color);
+                                    held_count += 1;
+                                } else {
+                                    held_count = 0;
                                 }
-                                VirtualKeyCode::H => {
-                                    if control_pressed {
-                                        window_visible = !window_visible;
-                                        window.set_visible(window_visible);
-                                        if !window_visible {
-                                            adjust_button.set_checked(false)
-                                        }
-                                    }
-                                }
-                                VirtualKeyCode::J => {
-                                    if control_pressed {
+                            }
+                            VirtualKeyCode::H => {
+                                if control_pressed && keyboard_input.state == ElementState::Pressed {
+                                    window_visible = !window_visible;
+                                    window.set_visible(window_visible);
+                                    if !window_visible {
                                         adjust_button.set_checked(false)
                                     }
                                 }
-                                _ => (),
                             }
-                        } else {
-                            // adjust button is NOT checked
-                            match keycode {
-                                VirtualKeyCode::H => {
-                                    if control_pressed {
-                                        window_visible = !window_visible;
-                                        window.set_visible(window_visible);
-                                        if !window_visible {
-                                            adjust_button.set_checked(false)
-                                        }
+                            VirtualKeyCode::J => {
+                                if control_pressed && keyboard_input.state == ElementState::Pressed {
+                                    adjust_button.set_checked(false)
+                                }
+                            }
+                            _ => (),
+                        }
+                    } else {
+                        // adjust button is NOT checked
+                        match keycode {
+                            VirtualKeyCode::H => {
+                                if control_pressed && keyboard_input.state == ElementState::Pressed {
+                                    window_visible = !window_visible;
+                                    window.set_visible(window_visible);
+                                    if !window_visible {
+                                        adjust_button.set_checked(false)
                                     }
                                 }
-                                VirtualKeyCode::J => {
-                                    if control_pressed && window_visible {
-                                        adjust_button.set_checked(true)
-                                    }
-                                }
-                                _ => (),
                             }
+                            VirtualKeyCode::J => {
+                                if control_pressed && keyboard_input.state == ElementState::Pressed && window_visible {
+                                    adjust_button.set_checked(true)
+                                }
+                            }
+                            _ => (),
                         }
                     }
                 }
@@ -220,7 +251,7 @@ fn main() {
                 }
                 id if id == reset_button.id() => {
                     *settings = Settings::default();
-                    on_window_size_or_position_change(&window, &settings);
+                    on_window_size_or_position_change(&window, &settings, &mut surface, color);
                 }
                 _ => (),
             }
@@ -229,14 +260,34 @@ fn main() {
 }
 
 /// Handles both window size and position change side effects.
-fn on_window_size_or_position_change(window: &Window, settings: &Settings) {
+fn on_window_size_or_position_change(window: &Window, settings: &Settings, surface: &mut Surface, color: u32) {
     window.set_inner_size(settings.size());
     window.set_outer_position(compute_window_coordinates(window, settings));
+    draw_window(surface, settings, color);
 }
 
 /// Slightly cheaper special case that can only handle window position changes. Do not use this if the window size may have changed.
 fn on_window_position_change(window: &Window, settings: &Settings) {
     window.set_outer_position(compute_window_coordinates(window, settings));
+}
+
+fn speed_ramp(held_count: u32) -> u32 {
+    if held_count < 10 {
+        // 0-9
+        1
+    } else if held_count < 20 {
+        // 10-19
+        4
+    } else if held_count < 40 {
+        // 20-39
+        16
+    } else if held_count < 60 {
+        // 40-59
+        32
+    } else {
+        // 60+
+        64
+    }
 }
 
 /// Compute the correct coordinates of the top-left of the window in order to center the crosshair in the primary monitor
@@ -256,7 +307,7 @@ fn compute_window_coordinates(window: &Window, settings: &Settings) -> PhysicalP
 }
 
 /// draws a simple red crosshair
-fn draw_window(surface: &mut Surface, settings: &Settings) {
+fn draw_window(surface: &mut Surface, settings: &Settings, color: u32) {
     surface.resize(
         NonZeroU32::new(settings.window_width).unwrap(),
         NonZeroU32::new(settings.window_height).unwrap(),
@@ -272,33 +323,33 @@ fn draw_window(surface: &mut Surface, settings: &Settings) {
 
         if width <= 2 || height <= 2 {
             // edge case where there simply aren't enough pixels to draw a crosshair, so we just fall back to a dot
-            buffer.fill(settings.color);
+            buffer.fill(color);
         } else {
             buffer.fill(FULL_ALPHA);
 
             // horizontal line
             let start = width * (height / 2);
             for x in start..start + width {
-                buffer[x] = settings.color;
+                buffer[x] = color;
             }
 
             // second horizontal line (if size is even we need this for centering)
             if height % 2 == 0 {
                 let start = start - width;
                 for x in start..start + width {
-                    buffer[x] = settings.color;
+                    buffer[x] = color;
                 }
             }
 
             // vertical line
             for y in 0..height {
-                buffer[width * y + width / 2] = settings.color;
+                buffer[width * y + width / 2] = color;
             }
 
             // second vertical line (if size is even we need this for centering)
             if width % 2 == 0 {
                 for y in 0..height {
-                    buffer[width * y + width / 2 - 1] = settings.color;
+                    buffer[width * y + width / 2 - 1] = color;
                 }
             }
         }
@@ -380,4 +431,21 @@ fn init_gui(event_loop: &EventLoop<()>, settings: &Settings) -> Window {
     window.set_window_level(WindowLevel::AlwaysOnTop);
 
     window
+}
+
+fn premultiply_alpha(argb_color: u32) -> u32 {
+    let [b, g, r, a] = argb_color.to_le_bytes();
+
+    const MAX_COLOR: u16 = 255;
+
+    let b = b as u16;
+    let g = g as u16;
+    let r = r as u16;
+    let alpha = a as u16; // we're reusing `a` later, so give alpha a special name
+
+    let b = (b * alpha / MAX_COLOR) as u8;
+    let g = (g * alpha / MAX_COLOR) as u8;
+    let r = (r * alpha / MAX_COLOR) as u8;
+
+    u32::from_le_bytes([b, g, r, a])
 }
