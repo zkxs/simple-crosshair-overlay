@@ -2,51 +2,57 @@
 // See LICENSE file for full text.
 // Copyright © 2023 Michael Ripley
 
+use std::{fs, io, mem};
 use std::fs::File;
-use std::mem;
 use std::path::{Path, PathBuf};
 
 use png::ColorType;
 use serde::{Deserialize, Serialize};
 use winit::dpi::PhysicalSize;
 
+use crate::{CONFIG_PATH, show_warning};
+
 const DEFAULT_OFFSET_X: i32 = 0;
 const DEFAULT_OFFSET_Y: i32 = 0;
 const DEFAULT_SIZE: u32 = 4;
 
 #[derive(Deserialize, Serialize)]
-pub struct SavableSettings {
+pub struct PersistedSettings {
     pub window_dx: i32,
     pub window_dy: i32,
     pub window_width: u32,
     pub window_height: u32,
     #[serde(with = "crate::custom_serializer::argb_color")]
-    pub color: u32,
-    pub image_path: Option<PathBuf>,
+    color: u32,
+    image_path: Option<PathBuf>,
 }
 
-impl SavableSettings {
-    pub fn load(self) -> Result<LoadedSettings, String> {
+impl PersistedSettings {
+    fn load(self) -> Settings {
         let color = premultiply_alpha(self.color);
         let image = if let Some(image_path) = &self.image_path {
-            Some(load_png(image_path.as_path())?)
+            match load_png(image_path.as_path()) {
+                Ok(image) => Some(image),
+                Err(e) => {
+                    show_warning(format!("Failed loading saved image_path \"{}\".\n\n{}", image_path.display(), e));
+                    None
+                }
+            }
         } else {
             None
         };
 
-        Ok(
-            LoadedSettings {
-                savable: self,
-                color,
-                image,
-            }
-        )
+        Settings {
+            persisted: self,
+            color,
+            image,
+        }
     }
 }
 
-impl Default for SavableSettings {
+impl Default for PersistedSettings {
     fn default() -> Self {
-        SavableSettings {
+        PersistedSettings {
             window_dx: DEFAULT_OFFSET_X,
             window_dy: DEFAULT_OFFSET_Y,
             window_width: DEFAULT_SIZE,
@@ -63,18 +69,18 @@ pub struct Image {
     pub data: Vec<u32>,
 }
 
-pub struct LoadedSettings {
-    pub savable: SavableSettings,
+pub struct Settings {
+    pub persisted: PersistedSettings,
     pub color: u32,
     pub image: Option<Image>,
 }
 
-impl LoadedSettings {
+impl Settings {
     pub fn size(&self) -> PhysicalSize<u32> {
         if let Some(image) = &self.image {
             PhysicalSize::new(image.width, image.height)
         } else {
-            PhysicalSize::new(self.savable.window_width, self.savable.window_height)
+            PhysicalSize::new(self.persisted.window_width, self.persisted.window_height)
         }
     }
 
@@ -84,19 +90,41 @@ impl LoadedSettings {
 
     /// only reset the settings the user can actually edit in-app. If they've manually edited "secret settings" in their config that should stick.
     pub fn reset(&mut self) {
-        self.savable.window_dx = DEFAULT_OFFSET_X;
-        self.savable.window_dy = DEFAULT_OFFSET_Y;
-        self.savable.window_width = DEFAULT_SIZE;
-        self.savable.window_height = DEFAULT_SIZE;
+        self.persisted.window_dx = DEFAULT_OFFSET_X;
+        self.persisted.window_dy = DEFAULT_OFFSET_Y;
+        self.persisted.window_width = DEFAULT_SIZE;
+        self.persisted.window_height = DEFAULT_SIZE;
+        self.persisted.image_path = None;
+        self.image = None;
+    }
+
+    /// load a new PNG at runtime
+    pub fn load_png(&mut self, path: PathBuf) -> io::Result<()> {
+        let image = load_png(path.as_path())?;
+        self.persisted.image_path = Some(path);
+        self.image = Some(image);
+        Ok(())
+    }
+
+    pub fn load() -> io::Result<Settings> {
+        fs::create_dir_all(CONFIG_PATH.as_path().parent().unwrap())?;
+        fs::read_to_string(CONFIG_PATH.as_path())
+            .and_then(|string| toml::from_str::<PersistedSettings>(&string).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e)))
+            .map(|settings| settings.load())
+    }
+
+    pub fn save(&self) -> Result<(), String> {
+        let serialized_config = toml::to_string(&self.persisted).expect("failed to serialize settings");
+        fs::write(CONFIG_PATH.as_path(), serialized_config).map_err(|e| format!("{e:?}"))
     }
 }
 
-impl Default for LoadedSettings {
+impl Default for Settings {
     fn default() -> Self {
-        let savable = SavableSettings::default();
+        let savable = PersistedSettings::default();
         let color = premultiply_alpha(savable.color);
-        LoadedSettings {
-            savable,
+        Settings {
+            persisted: savable,
             color,
             image: None,
         }
@@ -137,10 +165,10 @@ fn premultiply_alpha(argb_color: u32) -> u32 {
     argb_color
 }
 
-fn load_png(path: &Path) -> Result<Image, String> {
-    let file = File::open(path).map_err(|e| format!("error opening image \"{}\": {}", path.display(), e))?;
+fn load_png(path: &Path) -> io::Result<Image> {
+    let file = File::open(path)?;
     let decoder = png::Decoder::new(file);
-    let mut reader = decoder.read_info().map_err(|e| format!("error reading PNG info \"{}\": {}", path.display(), e))?;
+    let mut reader = decoder.read_info()?;
 
     const RATIO: usize = mem::size_of::<u32>() / mem::size_of::<u8>();
     let mut buf: Vec<u32> = vec![0; div_ceil(reader.output_buffer_size(), RATIO)];
@@ -154,10 +182,10 @@ fn load_png(path: &Path) -> Result<Image, String> {
         }
     };
 
-    let info = reader.next_frame(aligned_buf).map_err(|e| format!("error reading PNG frame \"{}\": {}", path.display(), e))?;
+    let info = reader.next_frame(aligned_buf)?;
 
     if info.color_type != ColorType::Rgba {
-        Err("Image was not in RGBA color")?;
+        Err(io::Error::new(io::ErrorKind::InvalidInput, format!("PNG was in {:?} format. Only {:?} format is supported. Please re-save your PNG in the required format.", info.color_type, ColorType::Rgba)))?;
     }
 
     // post-process buf

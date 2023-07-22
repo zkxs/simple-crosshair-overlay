@@ -4,12 +4,13 @@ A simple native crosshair overlay without unnecessary bloat. Free and open-sourc
 
 ## Features
 
-- Performant: the overlay is only redrawn if you adjust the crosshair scale
+- Performant: the overlay is only redrawn when you change the crosshair
 - Saves crosshair settings when you exit the application
 - Managed via a tray icon and hotkeys
+- Comes with a simple default crosshair that can be scaled to your preference
+- Can use custom PNG images as crosshairs. Alpha is not only supported: it's mandatory. Because why would you want an opaque rectangle as your crosshair?
 - Works on any application that's *not* fullscreen exclusive. You **must** use windowed or borderless-windowed mode on your game. This was an intentional design choice, as rendering into a fullscreen-exclusive game is *not* anticheat-compatible.
 - Supports both even and odd sized crosshairs. This is noteworthy, as some games center your gun on a single pixel, while others center it on the intersection *between* four pixels.
-- Changing crosshair scale preserves the center position.
 
 ## Installation
 
@@ -22,6 +23,7 @@ Use the tray icon to:
 
 - toggle crosshair visibility (you can also use Ctrl+H)
 - toggle **Adjust Mode** (you can also use Ctrl+J)
+- load a PNG image as your crosshair
 - reset crosshair to default settings
 - safely exit the application and save your settings
 
@@ -34,7 +36,6 @@ Color cannot currently be changed in-application. However, it can be manually al
 
 Maybe one day I'll get around to these features:
 
-- Support loading custom PNG images as crosshairs
 - Support changing color of built-in crosshair
 - Verify if it works on MacOS/Linux
 - Custom app icon in both exe and tray

@@ -4,11 +4,14 @@
 
 #![windows_subsystem = "windows"] // necessary to remove the console window on Windows
 
-use std::fs;
+use std::io;
 use std::num::NonZeroU32;
 use std::path::PathBuf;
+use std::sync::mpsc;
+use std::sync::Mutex;
 
 use lazy_static::lazy_static;
+use native_dialog::{FileDialog, MessageDialog, MessageType};
 use softbuffer::{Context, Surface};
 use tray_icon::{menu::Menu, TrayIconBuilder};
 use tray_icon::icon::Icon;
@@ -20,7 +23,7 @@ use winit::event_loop::{DeviceEventFilter, EventLoop};
 use winit::platform::windows::WindowBuilderExtWindows;
 use winit::window::{Window, WindowBuilder, WindowLevel};
 
-use crate::settings::{LoadedSettings, SavableSettings};
+use crate::settings::Settings;
 
 mod settings;
 mod custom_serializer;
@@ -32,15 +35,30 @@ const ICON_SIZE: usize = (ICON_DIMENSION_SQUARED * 4) as usize;
 static ICON_TOOLTIP: &str = "Simple Crosshair Overlay";
 
 lazy_static! {
-    static ref CONFIG_PATH: PathBuf = directories::ProjectDirs::from("dev.zkxs", "", "simple-crosshair-overlay").unwrap().config_dir().join("config.toml");
+    pub static ref CONFIG_PATH: PathBuf = directories::ProjectDirs::from("dev.zkxs", "", "simple-crosshair-overlay").unwrap().config_dir().join("config.toml");
+
+    // this is some arcane bullshit to get a global mpsc
+    // the sender can be cloned, and we'll do that via a thread_local later
+    // the receiver can't be cloned, so just shove it in an Option so we can take() it later.
+    static ref DIALOG_REQUEST_CHANNEL: (Mutex<mpsc::Sender<DialogRequest>>, Mutex<Option<mpsc::Receiver<DialogRequest>>>) = {
+        let (sender, receiver) = mpsc::channel();
+        let sender = Mutex::new(sender);
+        let receiver = Mutex::new(Some(receiver));
+        (sender, receiver)
+    };
+}
+
+thread_local! {
+    static DIALOG_REQUEST_SENDER: mpsc::Sender<DialogRequest> = DIALOG_REQUEST_CHANNEL.0.lock().unwrap().clone();
 }
 
 fn main() {
-    let settings = match load_settings() {
+    let settings = match Settings::load() {
         Ok(settings) => settings,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Settings::default(), // generate new settings file when it doesn't exist
         Err(e) => {
-            eprintln!("Error loading settings at {}: {}", CONFIG_PATH.display(), e);
-            LoadedSettings::default()
+            show_warning(format!("Error loading settings file \"{}\". Resetting to default settings.\n\n{}", CONFIG_PATH.display(), e));
+            Settings::default()
         }
     };
     let mut settings = Box::new(settings);
@@ -58,10 +76,12 @@ fn main() {
 
     let visible_button = CheckMenuItem::new("Visible", true, true, None);
     let adjust_button = CheckMenuItem::new("Adjust", true, false, None);
+    let image_pick_button = MenuItem::new("Load Image", true, None);
     let reset_button = MenuItem::new("Reset", true, None);
     let exit_button = MenuItem::new("Exit", true, None);
     root_menu.append(&visible_button);
     root_menu.append(&adjust_button);
+    root_menu.append(&image_pick_button);
     root_menu.append(&reset_button);
     root_menu.append(&exit_button);
 
@@ -78,21 +98,57 @@ fn main() {
     );
 
     #[cfg(target_os = "linux")]
-    std::thread::spawn(|| {
-        gtk::init().unwrap();
+    std::thread::Builder::new()
+        .name("gtk-main".to_string())
+        .spawn(|| {
+            gtk::init().unwrap();
 
-        // linux: icon must be created on same thread as gtk main loop,
-        // and therefore can NOT be on the same thread as the event loop despite the tray-icon docs saying otherwise.
-        // This means it's impossible to have it in scope for dropping later from the event loop
-        TrayIconBuilder::new()
-            .with_menu(Box::new(tray_menu))
-            .with_tooltip(ICON_TOOLTIP)
-            .with_icon(get_icon())
-            .build()
-            .unwrap();
+            // linux: icon must be created on same thread as gtk main loop,
+            // and therefore can NOT be on the same thread as the event loop despite the tray-icon docs saying otherwise.
+            // This means it's impossible to have it in scope for dropping later from the event loop
+            TrayIconBuilder::new()
+                .with_menu(Box::new(tray_menu))
+                .with_tooltip(ICON_TOOLTIP)
+                .with_icon(get_icon())
+                .build()
+                .unwrap();
 
-        gtk::main();
-    });
+            gtk::main();
+        }).unwrap();
+
+    let (file_path_sender, file_path_receiver) = mpsc::channel();
+    let dialog_request_receiver = DIALOG_REQUEST_CHANNEL.1.lock().unwrap().take().unwrap();
+
+    // native dialogs block a thread, so we'll spin up a single thread to loop through queued dialogs.
+    // If we ever need to show multiple dialogs, they just get queued.
+    let dialog_worker_join_handle = std::thread::Builder::new()
+        .name("dialog-worker".to_string())
+        .spawn(move || {
+            loop {
+                // block waiting for a file read request
+                match dialog_request_receiver.recv().unwrap() {
+                    DialogRequest::PngPath => {
+                        let path = FileDialog::new()
+                            .add_filter("PNG Image", &["png"])
+                            .show_open_single_file()
+                            .ok()
+                            .flatten();
+
+                        let _ = file_path_sender.send(path);
+                    }
+                    DialogRequest::Warning(text) => {
+                        MessageDialog::new()
+                            .set_type(MessageType::Warning)
+                            .set_title("Simple Crosshair Overlay")
+                            .set_text(&text)
+                            .show_alert()
+                            .unwrap();
+                    }
+                    DialogRequest::Terminate => break,
+                }
+            }
+        }).unwrap();
+    let mut dialog_worker_join_handle = Some(dialog_worker_join_handle); // we take() from this later
 
     let menu_channel = MenuEvent::receiver();
     let event_loop = EventLoop::new();
@@ -105,7 +161,8 @@ fn main() {
     // remember some application state that's NOT part of our saved config
     let mut window_visible = true;
     let mut control_pressed = false;
-    let mut held_count: u32 = 0;
+    let mut held_count: u32 = 0; // a really terrible count of how many "frames" we've been holding a button. But it's not frames, and it's not accurate.
+    let mut force_redraw = false; // if set to true, the next redraw will be forced even for known buffer contents
 
     // pass control to the event loop
     event_loop.run(move |event, _, control_flow| {
@@ -119,7 +176,8 @@ fn main() {
                     window.set_inner_size(settings.size());
                 }
 
-                draw_window(&mut surface, &settings)
+                draw_window(&mut surface, &settings, force_redraw);
+                force_redraw = false;
             }
             Event::DeviceEvent { event: Key(keyboard_input), device_id: _device_id } => {
                 if let Some(keycode) = keyboard_input.virtual_keycode {
@@ -136,7 +194,7 @@ fn main() {
                         match keycode {
                             VirtualKeyCode::Up => {
                                 if keyboard_input.state == ElementState::Pressed {
-                                    settings.savable.window_dy -= speed_ramp(held_count) as i32;
+                                    settings.persisted.window_dy -= speed_ramp(held_count) as i32;
                                     on_window_position_change(&window, &settings);
                                     held_count += 1;
                                 } else {
@@ -145,7 +203,7 @@ fn main() {
                             }
                             VirtualKeyCode::Down => {
                                 if keyboard_input.state == ElementState::Pressed {
-                                    settings.savable.window_dy += speed_ramp(held_count) as i32;
+                                    settings.persisted.window_dy += speed_ramp(held_count) as i32;
                                     on_window_position_change(&window, &settings);
                                     held_count += 1;
                                 } else {
@@ -154,7 +212,7 @@ fn main() {
                             }
                             VirtualKeyCode::Left => {
                                 if keyboard_input.state == ElementState::Pressed {
-                                    settings.savable.window_dx -= speed_ramp(held_count) as i32;
+                                    settings.persisted.window_dx -= speed_ramp(held_count) as i32;
                                     on_window_position_change(&window, &settings);
                                     held_count += 1;
                                 } else {
@@ -163,7 +221,7 @@ fn main() {
                             }
                             VirtualKeyCode::Right => {
                                 if keyboard_input.state == ElementState::Pressed {
-                                    settings.savable.window_dx += speed_ramp(held_count) as i32;
+                                    settings.persisted.window_dx += speed_ramp(held_count) as i32;
                                     on_window_position_change(&window, &settings);
                                     held_count += 1;
                                 } else {
@@ -172,8 +230,8 @@ fn main() {
                             }
                             VirtualKeyCode::PageUp => {
                                 if settings.is_scalable() && keyboard_input.state == ElementState::Pressed {
-                                    settings.savable.window_height += speed_ramp(held_count);
-                                    settings.savable.window_width = settings.savable.window_height;
+                                    settings.persisted.window_height += speed_ramp(held_count);
+                                    settings.persisted.window_width = settings.persisted.window_height;
                                     on_window_size_or_position_change(&window, &settings);
                                     held_count += 1;
                                 } else {
@@ -182,8 +240,8 @@ fn main() {
                             }
                             VirtualKeyCode::PageDown => {
                                 if settings.is_scalable() && keyboard_input.state == ElementState::Pressed {
-                                    settings.savable.window_height = settings.savable.window_height.checked_sub(speed_ramp(held_count)).unwrap_or(1).max(1);
-                                    settings.savable.window_width = settings.savable.window_height;
+                                    settings.persisted.window_height = settings.persisted.window_height.checked_sub(speed_ramp(held_count)).unwrap_or(1).max(1);
+                                    settings.persisted.window_width = settings.persisted.window_height;
                                     on_window_size_or_position_change(&window, &settings);
                                     held_count += 1;
                                 } else {
@@ -231,6 +289,20 @@ fn main() {
             _ => ()
         }
 
+        if let Ok(path) = file_path_receiver.try_recv() {
+            image_pick_button.set_enabled(true);
+
+            if let Some(path) = path {
+                match settings.load_png(path) {
+                    Ok(()) => {
+                        force_redraw = true;
+                        on_window_size_or_position_change(&window, &settings);
+                    }
+                    Err(e) => show_warning(format!("Error loading PNG.\n\n{}", e))
+                }
+            }
+        }
+
         while let Ok(event) = menu_channel.try_recv() {
             match event.id {
                 id if id == exit_button.id() => {
@@ -238,8 +310,15 @@ fn main() {
                     #[cfg(not(target_os = "linux"))]
                     tray_icon.take(); // yeah this is simply impossible on Linux, so good luck dropping this at the correct time :)
                     window.set_visible(false);
-                    if let Err(e) = save_settings(&settings) {
-                        eprintln!("Error saving settings at {}: {}", CONFIG_PATH.display(), e);
+                    if let Err(e) = settings.save() {
+                        show_warning(format!("Error saving settings to \"{}\".\n\n{}", CONFIG_PATH.display(), e));
+                    }
+
+                    // kill the dialog worker and wait for it to finish
+                    // this makes the application remain open until the user has clicked through any queued dialogs
+                    terminate_dialog_worker();
+                    if let Some(handle) = dialog_worker_join_handle.take() {
+                        handle.join().unwrap();
                     }
 
                     control_flow.set_exit();
@@ -247,7 +326,12 @@ fn main() {
                 }
                 id if id == reset_button.id() => {
                     settings.reset();
+                    force_redraw = true;
                     on_window_size_or_position_change(&window, &settings);
+                }
+                id if id == image_pick_button.id() => {
+                    image_pick_button.set_enabled(false);
+                    let _ = DIALOG_REQUEST_SENDER.with(|sender| sender.send(DialogRequest::PngPath));
                 }
                 _ => (),
             }
@@ -256,9 +340,10 @@ fn main() {
 }
 
 /// Handles both window size and position change side effects.
-fn on_window_size_or_position_change(window: &Window, settings: &LoadedSettings) {
+fn on_window_size_or_position_change(window: &Window, settings: &Settings) {
     window.set_inner_size(settings.size());
     window.set_outer_position(compute_window_coordinates(window, settings));
+    window.request_redraw(); // needed in case the window size didn't change but the image was replaced
 
     /*
     TODO: scaling jitter problem
@@ -270,7 +355,7 @@ fn on_window_size_or_position_change(window: &Window, settings: &LoadedSettings)
 }
 
 /// Slightly cheaper special case that can only handle window position changes. Do not use this if the window size may have changed.
-fn on_window_position_change(window: &Window, settings: &LoadedSettings) {
+fn on_window_position_change(window: &Window, settings: &Settings) {
     window.set_outer_position(compute_window_coordinates(window, settings));
 }
 
@@ -294,23 +379,24 @@ fn speed_ramp(held_count: u32) -> u32 {
 }
 
 /// Compute the correct coordinates of the top-left of the window in order to center the crosshair in the primary monitor
-fn compute_window_coordinates(window: &Window, settings: &LoadedSettings) -> PhysicalPosition<i32> {
+fn compute_window_coordinates(window: &Window, settings: &Settings) -> PhysicalPosition<i32> {
     let monitor = window.primary_monitor().unwrap();
     let PhysicalPosition { x: monitor_x, y: monitor_y } = monitor.position();
     let PhysicalSize { width: monitor_width, height: monitor_height } = monitor.size();
     let monitor_width = i32::try_from(monitor_width).unwrap();
     let monitor_height = i32::try_from(monitor_height).unwrap();
-    let window_width = settings.savable.window_width as i32;
-    let window_height = settings.savable.window_height as i32;
+    let PhysicalSize { width: window_width, height: window_height } = settings.size();
+    let window_width = window_width as i32;
+    let window_height = window_height as i32;
     let monitor_center_x = (monitor_width - monitor_x) / 2;
     let monitor_center_y = (monitor_height - monitor_y) / 2;
-    let window_x = monitor_center_x - (window_width / 2) + settings.savable.window_dx;
-    let window_y = monitor_center_y - (window_height / 2) + settings.savable.window_dy;
+    let window_x = monitor_center_x - (window_width / 2) + settings.persisted.window_dx;
+    let window_y = monitor_center_y - (window_height / 2) + settings.persisted.window_dy;
     PhysicalPosition::new(window_x, window_y)
 }
 
 /// draws a crosshair image, or a simple red crosshair if no image is set
-fn draw_window(surface: &mut Surface, settings: &LoadedSettings) {
+fn draw_window(surface: &mut Surface, settings: &Settings, force: bool) {
     let PhysicalSize { width: window_width, height: window_height } = settings.size();
     surface.resize(
         NonZeroU32::new(window_width).unwrap(),
@@ -319,7 +405,7 @@ fn draw_window(surface: &mut Surface, settings: &LoadedSettings) {
 
     let mut buffer = surface.buffer_mut().unwrap();
 
-    if buffer.age() == 0 {
+    if force || buffer.age() == 0 {
         if let Some(image) = &settings.image {
             // draw our image
             buffer.copy_from_slice(image.data.as_slice());
@@ -328,8 +414,8 @@ fn draw_window(surface: &mut Surface, settings: &LoadedSettings) {
 
             const FULL_ALPHA: u32 = 0x00000000;
 
-            let width = settings.savable.window_width as usize;
-            let height = settings.savable.window_height as usize;
+            let width = settings.persisted.window_width as usize;
+            let height = settings.persisted.window_height as usize;
 
             if width <= 2 || height <= 2 {
                 // edge case where there simply aren't enough pixels to draw a crosshair, so we just fall back to a dot
@@ -369,18 +455,6 @@ fn draw_window(surface: &mut Surface, settings: &LoadedSettings) {
     buffer.present().unwrap();
 }
 
-fn load_settings() -> Result<LoadedSettings, String> {
-    fs::create_dir_all(CONFIG_PATH.as_path().parent().unwrap()).map_err(|e| format!("{e:?}"))?;
-    fs::read_to_string(CONFIG_PATH.as_path()).map_err(|e| format!("{e:?}"))
-        .and_then(|string| toml::from_str::<SavableSettings>(&string).map_err(|e| format!("{e:?}")))
-        .and_then(|settings| settings.load())
-}
-
-fn save_settings(settings: &LoadedSettings) -> Result<(), String> {
-    let serialized_config = toml::to_string(&settings.savable).expect("failed to serialize settings");
-    fs::write(CONFIG_PATH.as_path(), serialized_config).map_err(|e| format!("{e:?}"))
-}
-
 fn get_icon() -> Icon {
     Icon::from_rgba(get_icon_rgba(), ICON_DIMENSION, ICON_DIMENSION).unwrap()
 }
@@ -413,7 +487,7 @@ fn get_icon_rgba() -> Vec<u8> {
     icon_rgba
 }
 
-fn init_gui(event_loop: &EventLoop<()>, settings: &LoadedSettings) -> Window {
+fn init_gui(event_loop: &EventLoop<()>, settings: &Settings) -> Window {
     let window = WindowBuilder::new()
         .with_visible(false) // things get very buggy on Windows if you default the window to invisible...
         .with_transparent(true)
@@ -445,3 +519,16 @@ fn init_gui(event_loop: &EventLoop<()>, settings: &LoadedSettings) -> Window {
     window
 }
 
+enum DialogRequest {
+    PngPath,
+    Warning(String),
+    Terminate,
+}
+
+pub fn show_warning(text: String) {
+    let _ = DIALOG_REQUEST_SENDER.with(|sender| sender.send(DialogRequest::Warning(text)));
+}
+
+pub fn terminate_dialog_worker() {
+    let _ = DIALOG_REQUEST_SENDER.with(|sender| sender.send(DialogRequest::Terminate));
+}
