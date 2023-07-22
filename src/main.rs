@@ -260,10 +260,19 @@ fn main() {
 }
 
 /// Handles both window size and position change side effects.
-fn on_window_size_or_position_change(window: &Window, settings: &Settings, surface: &mut Surface, color: u32) {
+fn on_window_size_or_position_change(window: &Window, settings: &Settings, _surface: &mut Surface, _color: u32) {
     window.set_inner_size(settings.size());
     window.set_outer_position(compute_window_coordinates(window, settings));
-    draw_window(surface, settings, color);
+
+    /*
+    TODO: scaling jitter problem
+        When the application is scaled really quickly via key-repeat spam it struggles to scale, move, and redraw the window in perfect sync.
+        To fix this I'd have to completely rearchitect how scaling works. Ideas:
+        1. Temporarily size the window to full screen, thereby eliminating all but the redraws
+        2. Stop relying on key repeat and instead remember key state and use ticks for your update intervals
+    */
+
+    //draw_window(surface, settings, color);
 }
 
 /// Slightly cheaper special case that can only handle window position changes. Do not use this if the window size may have changed.
