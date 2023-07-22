@@ -246,7 +246,7 @@ fn main() {
                     break;
                 }
                 id if id == reset_button.id() => {
-                    *settings = LoadedSettings::default();
+                    settings.reset();
                     on_window_size_or_position_change(&window, &settings);
                 }
                 _ => (),

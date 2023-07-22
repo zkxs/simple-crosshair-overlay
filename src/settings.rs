@@ -10,6 +10,10 @@ use png::ColorType;
 use serde::{Deserialize, Serialize};
 use winit::dpi::PhysicalSize;
 
+const DEFAULT_OFFSET_X: i32 = 0;
+const DEFAULT_OFFSET_Y: i32 = 0;
+const DEFAULT_SIZE: u32 = 4;
+
 #[derive(Deserialize, Serialize)]
 pub struct SavableSettings {
     pub window_dx: i32,
@@ -19,19 +23,6 @@ pub struct SavableSettings {
     #[serde(with = "crate::custom_serializer::argb_color")]
     pub color: u32,
     pub image_path: Option<PathBuf>,
-}
-
-impl Default for SavableSettings {
-    fn default() -> Self {
-        SavableSettings {
-            window_dx: 0,
-            window_dy: 0,
-            window_width: 4,
-            window_height: 4,
-            color: 0xB2FF0000, // 70% alpha red
-            image_path: None,
-        }
-    }
 }
 
 impl SavableSettings {
@@ -50,6 +41,19 @@ impl SavableSettings {
                 image,
             }
         )
+    }
+}
+
+impl Default for SavableSettings {
+    fn default() -> Self {
+        SavableSettings {
+            window_dx: DEFAULT_OFFSET_X,
+            window_dy: DEFAULT_OFFSET_Y,
+            window_width: DEFAULT_SIZE,
+            window_height: DEFAULT_SIZE,
+            color: 0xB2FF0000, // 70% alpha red
+            image_path: None,
+        }
     }
 }
 
@@ -76,6 +80,14 @@ impl LoadedSettings {
 
     pub fn is_scalable(&self) -> bool {
         self.image.is_none()
+    }
+
+    /// only reset the settings the user can actually edit in-app. If they've manually edited "secret settings" in their config that should stick.
+    pub fn reset(&mut self) {
+        self.savable.window_dx = DEFAULT_OFFSET_X;
+        self.savable.window_dy = DEFAULT_OFFSET_Y;
+        self.savable.window_width = DEFAULT_SIZE;
+        self.savable.window_height = DEFAULT_SIZE;
     }
 }
 
