@@ -15,18 +15,19 @@ A simple native crosshair overlay without unnecessary bloat. Free and open-sourc
 
 ## Features
 
-- Performant: the overlay is only redrawn when you change the crosshair
-- Saves crosshair settings when you exit the application
-- Managed via a tray icon and hotkeys
+- Works on any application that's *not* fullscreen exclusive. You **must** use windowed or borderless-windowed mode on your game. This was an intentional design choice, as rendering into a fullscreen-exclusive game is *not* anticheat-compatible.
+- Performant: the overlay is only redrawn when you change the crosshair.
+- Minimal UI: managed via a tray icon and hotkeys.
 - Comes with a simple default crosshair that can be scaled to your preference
 - Can use custom PNG images as crosshairs. Alpha is not only supported: it's mandatory. Because why would you want an opaque rectangle as your crosshair?
-- Works on any application that's *not* fullscreen exclusive. You **must** use windowed or borderless-windowed mode on your game. This was an intentional design choice, as rendering into a fullscreen-exclusive game is *not* anticheat-compatible.
-- Supports both even and odd sized crosshairs. This is noteworthy, as some games center your gun on a single pixel, while others center it on the intersection *between* four pixels.
+- Crosshair settings are saved when you exit the application.
+- No sprawling installation. simple-crosshair-overlay.exe itself and a single config file placed in `%appdata%\simple-crosshair-overlay` are all the files this program needs.
 
 ## Installation
 
-1. Download the [latest release](https://github.com/zkxs/simple-crosshair-overlay/releases/latest) to a location of your choice.
+1. Download simple-crosshair-overlay.exe from the [latest release](https://github.com/zkxs/simple-crosshair-overlay/releases/latest), and save it to a location of your choice
 2. Run simple-crosshair-overlay.exe
+3. Optionally, if you want a start menu shortcut you can make one yourself! Simply right-click simple-crosshair-overlay.exe and select "Pin to Start". This will automatically create a shortcut in `%appdata%\Microsoft\Windows\Start Menu\Programs`. 
 
 ## Usage
 
@@ -38,10 +39,11 @@ Use the tray icon to:
 - reset crosshair to default settings
 - safely exit the application and save your settings
 
-In **Adjust Mode**, the arrow keys to move the crosshair and PageUp/PageDown to increase/decrease the crosshair scale.
+In **Adjust Mode**, use the arrow keys to move the crosshair and PageUp/PageDown to increase/decrease the crosshair scale.
 
 Color cannot currently be changed in-application. However, it can be manually altered by editing the `color` setting in
 `%appdata%\simple-crosshair-overlay\config\config.toml` to an ARGB hexadecimal value.
+So for example `B2FF0000` for red with a bit of transparency, or `FF00FF00` for fully opaque green.
 
 ## To-Do
 
