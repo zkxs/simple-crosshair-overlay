@@ -29,8 +29,6 @@ mod settings;
 mod custom_serializer;
 
 const ICON_DIMENSION: u32 = 32;
-const ICON_DIMENSION_SQUARED: u32 = ICON_DIMENSION * ICON_DIMENSION;
-const ICON_SIZE: usize = (ICON_DIMENSION_SQUARED * 4) as usize;
 
 static ICON_TOOLTIP: &str = "Simple Crosshair Overlay";
 
@@ -154,6 +152,10 @@ fn main() {
     let event_loop = EventLoop::new();
     event_loop.set_device_event_filter(DeviceEventFilter::Never); // allow key capture even when the window is unfocused
 
+    // unsafe note: these three structs MUST live and die together.
+    // It is highly illegal to use the context or surface after the window is dropped.
+    // The context only gets used right here, so that's fine.
+    // As of this writing, none of these get moved. Therefore they all get dropped one after the other at the end of main(), which is safe.
     let window = init_gui(&event_loop, &settings);
     let context = unsafe { Context::new(&window) }.unwrap();
     let mut surface = unsafe { Surface::new(&context, &window) }.unwrap();
@@ -456,31 +458,33 @@ fn draw_window(surface: &mut Surface, settings: &Settings, force: bool) {
 }
 
 fn get_icon() -> Icon {
-    Icon::from_rgba(get_icon_rgba(), ICON_DIMENSION, ICON_DIMENSION).unwrap()
+    Icon::from_rgba(generate_icon_rgba(ICON_DIMENSION), ICON_DIMENSION, ICON_DIMENSION).unwrap()
 }
 
 //TODO: use an actual graphic and not just a generated placeholder
-fn get_icon_rgba() -> Vec<u8> {
+fn generate_icon_rgba(size: u32) -> Vec<u8> {
     // some silly math to make a colored circle
-    let mut icon_rgba: Vec<u8> = Vec::with_capacity(ICON_SIZE);
+    let icon_size_squared = size * size;
+    let mut icon_rgba: Vec<u8> = Vec::with_capacity((icon_size_squared * 4) as usize);
     #[allow(clippy::uninit_vec)]
     unsafe {
+        // there is no requirement I build my image in a zeroed buffer.
         icon_rgba.set_len(icon_rgba.capacity());
     }
-    for x in 0..ICON_DIMENSION {
-        for y in 0..ICON_DIMENSION {
-            let x_term = ((x as i32) * 2 - (ICON_DIMENSION as i32) + 1) / 2;
-            let y_term = ((y as i32) * 2 - (ICON_DIMENSION as i32) + 1) / 2;
+    for x in 0..size {
+        for y in 0..size {
+            let x_term = ((x as i32) * 2 - (size as i32) + 1) / 2;
+            let y_term = ((y as i32) * 2 - (size as i32) + 1) / 2;
             let distance_squared = x_term * x_term + y_term * y_term;
-            let mask: u8 = if distance_squared < ICON_DIMENSION_SQUARED as i32 / 4 {
+            let mask: u8 = if distance_squared < icon_size_squared as i32 / 4 {
                 0xFF
             } else {
                 0x00
             };
-            let icon_offset: usize = (x as usize * ICON_DIMENSION as usize + y as usize) * 4;
+            let icon_offset: usize = (x as usize * size as usize + y as usize) * 4;
             icon_rgba[icon_offset] = mask; // set red
-            icon_rgba[icon_offset + 1] = (x * 4) as u8 & mask; // set green
-            icon_rgba[icon_offset + 2] = (y * 4) as u8 & mask; // set blue
+            icon_rgba[icon_offset + 1] = (x * 128 / size) as u8 & mask; // set green
+            icon_rgba[icon_offset + 2] = (y * 128 / size) as u8 & mask; // set blue
             icon_rgba[icon_offset + 3] = mask; // set alpha
         }
     }

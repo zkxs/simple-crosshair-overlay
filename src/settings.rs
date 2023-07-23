@@ -170,10 +170,19 @@ fn load_png(path: &Path) -> io::Result<Image> {
     let decoder = png::Decoder::new(file);
     let mut reader = decoder.read_info()?;
 
+    // make a buffer of the correct size to hold the reader's data, but as u32's instead of u8's
     const RATIO: usize = mem::size_of::<u32>() / mem::size_of::<u8>();
-    let mut buf: Vec<u32> = vec![0; div_ceil(reader.output_buffer_size(), RATIO)];
+    let mut buf: Vec<u32> = Vec::with_capacity(div_ceil(reader.output_buffer_size(), RATIO));
+    #[allow(clippy::uninit_vec)]
+    unsafe {
+        // there is no requirement I send a zeroed buffer to the PNG decoding library.
+        buf.set_len(buf.capacity());
+    }
+
+    // a little check to make sure div_ceil isn't fucked up. Which it's definitely not, because I eyeballed it really sternly.
     debug_assert!(buf.len() * RATIO >= reader.output_buffer_size(), "buffer was unexpectedly not large enough for image decode");
 
+    // I'm just transmuting color data between u32 and [u8; 4] packing. No risk.
     let aligned_buf: &mut [u8] = unsafe {
         if let ([], aligned, []) = buf.align_to_mut() {
             aligned
@@ -202,11 +211,11 @@ fn load_png(path: &Path) -> io::Result<Image> {
 }
 
 const fn div_ceil(lhs: usize, rhs: usize) -> usize {
-    let d = lhs / rhs;
-    let r = lhs % rhs;
-    if r > 0 && rhs > 0 {
-        d + 1
+    let quotient = lhs / rhs;
+    let remainder = lhs % rhs;
+    if remainder > 0 {
+        quotient + 1
     } else {
-        d
+        quotient
     }
 }

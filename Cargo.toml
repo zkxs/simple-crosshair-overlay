@@ -29,6 +29,7 @@ native-dialog = "0.6"
 
 [target.'cfg(target_os = "windows")'.build-dependencies]
 winres = "0.1"
+ico = "0.3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.16" # must use this old version of gtk because it's what tray-icon 0.6 needs
