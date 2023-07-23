@@ -14,7 +14,7 @@ use lazy_static::lazy_static;
 use native_dialog::{FileDialog, MessageDialog, MessageType};
 use softbuffer::{Context, Surface};
 use tray_icon::{menu::Menu, TrayIconBuilder};
-use tray_icon::icon::Icon;
+use tray_icon::icon::Icon as TrayIcon;
 use tray_icon::menu::{CheckMenuItem, MenuEvent, MenuItem};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::event::{ElementState, Event, VirtualKeyCode};
@@ -27,8 +27,6 @@ use crate::settings::Settings;
 
 mod settings;
 mod custom_serializer;
-
-const ICON_DIMENSION: u32 = 32;
 
 static ICON_TOOLTIP: &str = "Simple Crosshair Overlay";
 
@@ -47,7 +45,13 @@ lazy_static! {
 }
 
 thread_local! {
+    // We only need one of these per thread. As we don't use any thread pools this should be a one-time cost on application startup.
     static DIALOG_REQUEST_SENDER: mpsc::Sender<DialogRequest> = DIALOG_REQUEST_CHANNEL.0.lock().unwrap().clone();
+}
+
+/// constants generated in build.rs
+mod build_constants {
+    include!(env!("CONSTANTS_PATH"));
 }
 
 fn main() {
@@ -457,38 +461,8 @@ fn draw_window(surface: &mut Surface, settings: &Settings, force: bool) {
     buffer.present().unwrap();
 }
 
-fn get_icon() -> Icon {
-    Icon::from_rgba(generate_icon_rgba(ICON_DIMENSION), ICON_DIMENSION, ICON_DIMENSION).unwrap()
-}
-
-//TODO: use an actual graphic and not just a generated placeholder
-fn generate_icon_rgba(size: u32) -> Vec<u8> {
-    // some silly math to make a colored circle
-    let icon_size_squared = size * size;
-    let mut icon_rgba: Vec<u8> = Vec::with_capacity((icon_size_squared * 4) as usize);
-    #[allow(clippy::uninit_vec)]
-    unsafe {
-        // there is no requirement I build my image in a zeroed buffer.
-        icon_rgba.set_len(icon_rgba.capacity());
-    }
-    for x in 0..size {
-        for y in 0..size {
-            let x_term = ((x as i32) * 2 - (size as i32) + 1) / 2;
-            let y_term = ((y as i32) * 2 - (size as i32) + 1) / 2;
-            let distance_squared = x_term * x_term + y_term * y_term;
-            let mask: u8 = if distance_squared < icon_size_squared as i32 / 4 {
-                0xFF
-            } else {
-                0x00
-            };
-            let icon_offset: usize = (x as usize * size as usize + y as usize) * 4;
-            icon_rgba[icon_offset] = mask; // set red
-            icon_rgba[icon_offset + 1] = (x * 128 / size) as u8 & mask; // set green
-            icon_rgba[icon_offset + 2] = (y * 128 / size) as u8 & mask; // set blue
-            icon_rgba[icon_offset + 3] = mask; // set alpha
-        }
-    }
-    icon_rgba
+fn get_icon() -> TrayIcon {
+    TrayIcon::from_rgba(include_bytes!(env!("TRAY_ICON_PATH")).to_vec(), build_constants::TRAY_ICON_DIMENSION, build_constants::TRAY_ICON_DIMENSION).unwrap()
 }
 
 fn init_gui(event_loop: &EventLoop<()>, settings: &Settings) -> Window {
