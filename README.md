@@ -2,6 +2,17 @@
 
 A simple native crosshair overlay without unnecessary bloat. Free and open-source software.
 
+
+![screenshot of the default, simple crosshair in action](screenshots/cross.png)
+
+
+<details>
+<summary>Click here to expand another screenshot demoing a custom PNG crosshair</summary>
+
+![screenshot of a custom PNG crosshair](screenshots/custom.png)
+
+</details>
+
 ## Features
 
 - Performant: the overlay is only redrawn when you change the crosshair
@@ -36,9 +47,8 @@ Color cannot currently be changed in-application. However, it can be manually al
 
 Maybe one day I'll get around to these features:
 
-- Support changing color of built-in crosshair
+- Support changing color of built-in crosshair _without_ manual config editing
 - Verify if it works on MacOS/Linux
-- Custom app icon in both exe and tray
 - Customizable hotkeys
 
 <!-- TODO: publish crate

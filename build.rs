@@ -1,3 +1,7 @@
+// This file is part of simple-crosshair-overlay and is licenced under the GNU GPL v3.0.
+// See LICENSE file for full text.
+// Copyright © 2023 Michael Ripley
+
 use std::io;
 
 static ICON_NAME: &str = "target/app.ico";
@@ -5,9 +9,7 @@ static ICON_NAME: &str = "target/app.ico";
 fn main() -> io::Result<()> {
     // only generate Windows resource info on Windows.
     // also, don't run this on debug builds because some IDEs will furiously re-run build.rs constantly.
-    // if cfg!(target_os = "windows") {
     if cfg!(all(target_os = "windows", not(debug_assertions))) {
-
         emit_ico_layers().unwrap();
 
         winres::WindowsResource::new()
