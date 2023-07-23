@@ -12,10 +12,10 @@ use std::path::{Path, PathBuf};
 ///
 /// Yeah, the tray-icon bindings don't make passing multiple sizes easy so I'm simply going to **not do that**.
 ///
-/// 32*32*4 = 4096, so this adds 4k to my filesize.
+/// 32*32*4 = 4096, so this adds 4k to my binary filesize.
 const TRAY_ICON_DIMENSION: u32 = 32;
 
-/// The sexy Windows .ico with the multiple size defined below adds ~26k.
+/// The sexy Windows .ico with the multiple size defined below adds ~26k to the binary.
 const APP_ICON_DIMENSIONS: [u32; 5] = [16, 24, 32, 48, 64];
 
 static CONSTANTS_SOURCE_NAME: &str = "constants.rs";
@@ -110,6 +110,7 @@ fn create_windows_app_icon_file(path: &Path) -> io::Result<()> {
     icon_dir.write(file)
 }
 
+// TODO: stop doing absurd buffer math to generate icons and just freaking bake an SVG
 /// Generate a simple icon. Just a red circle with a little green/blue gradient stuff going on to spice it up.
 fn generate_icon_rgba(size: u32) -> Vec<u8> {
     // some silly math to make a colored circle
