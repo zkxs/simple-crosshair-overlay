@@ -472,16 +472,16 @@ fn get_icon_rgba() -> Vec<u8> {
             let x_term = ((x as i32) * 2 - (ICON_DIMENSION as i32) + 1) / 2;
             let y_term = ((y as i32) * 2 - (ICON_DIMENSION as i32) + 1) / 2;
             let distance_squared = x_term * x_term + y_term * y_term;
-            let color: u8 = if distance_squared < ICON_DIMENSION_SQUARED as i32 / 4 {
-                255
+            let mask: u8 = if distance_squared < ICON_DIMENSION_SQUARED as i32 / 4 {
+                0xFF
             } else {
-                0
+                0x00
             };
             let icon_offset: usize = (x as usize * ICON_DIMENSION as usize + y as usize) * 4;
-            icon_rgba[icon_offset] = color; // set red
-            icon_rgba[icon_offset + 1] = (x * 4) as u8; // set green
-            icon_rgba[icon_offset + 2] = (y * 4) as u8; // set blue
-            icon_rgba[icon_offset + 3] = color; // set alpha
+            icon_rgba[icon_offset] = mask; // set red
+            icon_rgba[icon_offset + 1] = (x * 4) as u8 & mask; // set green
+            icon_rgba[icon_offset + 2] = (y * 4) as u8 & mask; // set blue
+            icon_rgba[icon_offset + 3] = mask; // set alpha
         }
     }
     icon_rgba
