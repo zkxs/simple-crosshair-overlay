@@ -9,7 +9,7 @@ readme = "README.md"
 homepage = "https://github.com/zkxs/simple-crosshair-overlay"
 repository = "https://github.com/zkxs/simple-crosshair-overlay"
 documentation = "https://github.com/zkxs/simple-crosshair-overlay"
-keywords = ["application", "overlay", "window", "crosshair", "center", "dot"]
+keywords = ["application", "overlay", "window", "crosshair"]
 categories = []
 
 [profile.release]
