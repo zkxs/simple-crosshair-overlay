@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use winit::dpi::PhysicalSize;
 
 use crate::{CONFIG_PATH, show_warning};
+use crate::hotkey::KeyBindings;
 
 const DEFAULT_OFFSET_X: i32 = 0;
 const DEFAULT_OFFSET_Y: i32 = 0;
@@ -25,12 +26,19 @@ pub struct PersistedSettings {
     #[serde(with = "crate::custom_serializer::argb_color")]
     color: u32,
     image_path: Option<PathBuf>,
+    #[serde(default)]
+    key_bindings: KeyBindings,
 }
 
 impl PersistedSettings {
     fn load(self) -> Settings {
         let color = premultiply_alpha(self.color);
-        let image = if let Some(image_path) = &self.image_path {
+
+        // make sure that if the user manually put an empty string in their config we don't explode
+        let filtered_image_path = self.image_path.as_ref()
+            .filter(|path| !path.as_os_str().is_empty());
+
+        let image = if let Some(image_path) = filtered_image_path {
             match load_png(image_path.as_path()) {
                 Ok(image) => Some(image),
                 Err(e) => {
@@ -59,6 +67,7 @@ impl Default for PersistedSettings {
             window_height: DEFAULT_SIZE,
             color: 0xB2FF0000, // 70% alpha red
             image_path: None,
+            key_bindings: KeyBindings::default(),
         }
     }
 }

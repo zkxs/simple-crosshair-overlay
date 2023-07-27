@@ -9,7 +9,9 @@ use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::Mutex;
+use std::time::Duration;
 
+use device_query::{DeviceQuery, DeviceState};
 use lazy_static::lazy_static;
 use native_dialog::{FileDialog, MessageDialog, MessageType};
 use softbuffer::{Context, Surface};
@@ -17,16 +19,19 @@ use tray_icon::{menu::Menu, TrayIconBuilder};
 use tray_icon::icon::Icon as TrayIcon;
 use tray_icon::menu::{CheckMenuItem, MenuEvent, MenuItem};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
-use winit::event::{ElementState, Event, VirtualKeyCode};
-use winit::event::DeviceEvent::Key;
-use winit::event_loop::{DeviceEventFilter, EventLoop};
+use winit::event::Event;
+use winit::event_loop::EventLoop;
 use winit::platform::windows::WindowBuilderExtWindows;
 use winit::window::{Window, WindowBuilder, WindowLevel};
 
+use crate::hotkey::{HotkeyManager, KeyBindings};
 use crate::settings::Settings;
 
 mod settings;
 mod custom_serializer;
+mod hotkey;
+
+const KEY_PROCESS_INTERVAL: Duration = Duration::from_millis(17);
 
 static ICON_TOOLTIP: &str = "Simple Crosshair Overlay";
 
@@ -79,12 +84,14 @@ fn main() {
     let visible_button = CheckMenuItem::new("Visible", true, true, None);
     let adjust_button = CheckMenuItem::new("Adjust", true, false, None);
     let image_pick_button = MenuItem::new("Load Image", true, None);
-    let reset_button = MenuItem::new("Reset", true, None);
+    let reset_button = MenuItem::new("Reset Overlay", true, None);
+    let about_button = MenuItem::new("About", true, None);
     let exit_button = MenuItem::new("Exit", true, None);
     root_menu.append(&visible_button);
     root_menu.append(&adjust_button);
     root_menu.append(&image_pick_button);
     root_menu.append(&reset_button);
+    root_menu.append(&about_button);
     root_menu.append(&exit_button);
 
     // keep the tray icon in an Option so we can take() it later to drop
@@ -138,6 +145,14 @@ fn main() {
 
                         let _ = file_path_sender.send(path);
                     }
+                    DialogRequest::Info(text) => {
+                        MessageDialog::new()
+                            .set_type(MessageType::Info)
+                            .set_title("Simple Crosshair Overlay")
+                            .set_text(&text)
+                            .show_alert()
+                            .unwrap();
+                    }
                     DialogRequest::Warning(text) => {
                         MessageDialog::new()
                             .set_type(MessageType::Warning)
@@ -154,7 +169,19 @@ fn main() {
 
     let menu_channel = MenuEvent::receiver();
     let event_loop = EventLoop::new();
-    event_loop.set_device_event_filter(DeviceEventFilter::Never); // allow key capture even when the window is unfocused
+
+    let user_event_sender = event_loop.create_proxy();
+    std::thread::Builder::new()
+        .name("tick-sender".to_string())
+        .spawn(move || {
+            loop {
+                let _ = user_event_sender.send_event(());
+                std::thread::sleep(KEY_PROCESS_INTERVAL);
+            }
+        }).unwrap();
+
+    let device_state = DeviceState::new();
+    let mut hotkey_manager = HotkeyManager::new(&KeyBindings::default());
 
     // unsafe note: these three structs MUST live and die together.
     // It is highly illegal to use the context or surface after the window is dropped.
@@ -166,8 +193,6 @@ fn main() {
 
     // remember some application state that's NOT part of our saved config
     let mut window_visible = true;
-    let mut control_pressed = false;
-    let mut held_count: u32 = 0; // a really terrible count of how many "frames" we've been holding a button. But it's not frames, and it's not accurate.
     let mut force_redraw = false; // if set to true, the next redraw will be forced even for known buffer contents
 
     // pass control to the event loop
@@ -185,114 +210,71 @@ fn main() {
                 draw_window(&mut surface, &settings, force_redraw);
                 force_redraw = false;
             }
-            Event::DeviceEvent { event: Key(keyboard_input), device_id: _device_id } => {
-                if let Some(keycode) = keyboard_input.virtual_keycode {
-                    // remember some select modifier keys
-                    match keycode {
-                        VirtualKeyCode::LControl | VirtualKeyCode::RControl => {
-                            control_pressed = keyboard_input.state == ElementState::Pressed;
-                        }
-                        _ => ()
+            Event::UserEvent(_) => {
+                let keys = device_state.get_keys();
+                hotkey_manager.process_keys(keys);
+
+                if adjust_button.is_checked() {
+                    let mut window_position_dirty = false;
+                    let mut window_scale_dirty = false;
+
+                    if hotkey_manager.move_up() != 0 {
+                        settings.persisted.window_dy -= hotkey_manager.move_up() as i32;
+                        window_position_dirty = true;
                     }
 
-                    if adjust_button.is_checked() {
-                        // adjust button IS checked
-                        match keycode {
-                            VirtualKeyCode::Up => {
-                                if keyboard_input.state == ElementState::Pressed {
-                                    settings.persisted.window_dy -= speed_ramp(held_count) as i32;
-                                    on_window_position_change(&window, &settings);
-                                    held_count += 1;
-                                } else {
-                                    held_count = 0;
-                                }
-                            }
-                            VirtualKeyCode::Down => {
-                                if keyboard_input.state == ElementState::Pressed {
-                                    settings.persisted.window_dy += speed_ramp(held_count) as i32;
-                                    on_window_position_change(&window, &settings);
-                                    held_count += 1;
-                                } else {
-                                    held_count = 0;
-                                }
-                            }
-                            VirtualKeyCode::Left => {
-                                if keyboard_input.state == ElementState::Pressed {
-                                    settings.persisted.window_dx -= speed_ramp(held_count) as i32;
-                                    on_window_position_change(&window, &settings);
-                                    held_count += 1;
-                                } else {
-                                    held_count = 0;
-                                }
-                            }
-                            VirtualKeyCode::Right => {
-                                if keyboard_input.state == ElementState::Pressed {
-                                    settings.persisted.window_dx += speed_ramp(held_count) as i32;
-                                    on_window_position_change(&window, &settings);
-                                    held_count += 1;
-                                } else {
-                                    held_count = 0;
-                                }
-                            }
-                            VirtualKeyCode::PageUp => {
-                                if settings.is_scalable() && keyboard_input.state == ElementState::Pressed {
-                                    settings.persisted.window_height += speed_ramp(held_count);
-                                    settings.persisted.window_width = settings.persisted.window_height;
-                                    on_window_size_or_position_change(&window, &settings);
-                                    held_count += 1;
-                                } else {
-                                    held_count = 0;
-                                }
-                            }
-                            VirtualKeyCode::PageDown => {
-                                if settings.is_scalable() && keyboard_input.state == ElementState::Pressed {
-                                    settings.persisted.window_height = settings.persisted.window_height.checked_sub(speed_ramp(held_count)).unwrap_or(1).max(1);
-                                    settings.persisted.window_width = settings.persisted.window_height;
-                                    on_window_size_or_position_change(&window, &settings);
-                                    held_count += 1;
-                                } else {
-                                    held_count = 0;
-                                }
-                            }
-                            VirtualKeyCode::H => {
-                                if control_pressed && keyboard_input.state == ElementState::Pressed {
-                                    window_visible = !window_visible;
-                                    window.set_visible(window_visible);
-                                    if !window_visible {
-                                        adjust_button.set_checked(false)
-                                    }
-                                }
-                            }
-                            VirtualKeyCode::J => {
-                                if control_pressed && keyboard_input.state == ElementState::Pressed {
-                                    adjust_button.set_checked(false)
-                                }
-                            }
-                            _ => (),
-                        }
-                    } else {
-                        // adjust button is NOT checked
-                        match keycode {
-                            VirtualKeyCode::H => {
-                                if control_pressed && keyboard_input.state == ElementState::Pressed {
-                                    window_visible = !window_visible;
-                                    window.set_visible(window_visible);
-                                    if !window_visible {
-                                        adjust_button.set_checked(false)
-                                    }
-                                }
-                            }
-                            VirtualKeyCode::J => {
-                                if control_pressed && keyboard_input.state == ElementState::Pressed && window_visible {
-                                    adjust_button.set_checked(true)
-                                }
-                            }
-                            _ => (),
-                        }
+                    if hotkey_manager.move_down() != 0 {
+                        settings.persisted.window_dy += hotkey_manager.move_down() as i32;
+                        window_position_dirty = true;
+                    }
+
+                    if hotkey_manager.move_left() != 0 {
+                        settings.persisted.window_dx -= hotkey_manager.move_left() as i32;
+                        window_position_dirty = true;
+                    }
+
+                    if hotkey_manager.move_right() != 0 {
+                        settings.persisted.window_dx += hotkey_manager.move_right() as i32;
+                        window_position_dirty = true;
+                    }
+
+
+                    if settings.is_scalable() && hotkey_manager.scale_increase() != 0 {
+                        settings.persisted.window_height += hotkey_manager.scale_increase();
+                        settings.persisted.window_width = settings.persisted.window_height;
+                        window_scale_dirty = true;
+                    }
+
+                    if settings.is_scalable() && hotkey_manager.scale_decrease() != 0 {
+                        settings.persisted.window_height = settings.persisted.window_height.checked_sub(hotkey_manager.scale_decrease()).unwrap_or(1).max(1);
+                        settings.persisted.window_width = settings.persisted.window_height;
+                        window_scale_dirty = true;
+                    }
+
+                    // adjust button is already checked
+                    if hotkey_manager.toggle_adjust() {
+                        adjust_button.set_checked(false)
+                    }
+
+                    if window_scale_dirty {
+                        on_window_size_or_position_change(&window, &settings);
+                    } else if window_position_dirty {
+                        on_window_position_change(&window, &settings);
+                    }
+                } else if hotkey_manager.toggle_adjust() {
+                    // adjust button is NOT checked
+                    adjust_button.set_checked(true)
+                }
+
+                if hotkey_manager.toggle_hidden() {
+                    window_visible = !window_visible;
+                    window.set_visible(window_visible);
+                    if !window_visible {
+                        adjust_button.set_checked(false)
                     }
                 }
             }
-            _ => ()
+            _ => (),
         }
 
         if let Ok(path) = file_path_receiver.try_recv() {
@@ -339,6 +321,9 @@ fn main() {
                     image_pick_button.set_enabled(false);
                     let _ = DIALOG_REQUEST_SENDER.with(|sender| sender.send(DialogRequest::PngPath));
                 }
+                id if id == about_button.id() => {
+                    show_info(format!("{}\nversion {}", build_constants::APPLICATION_NAME, env!("CARGO_PKG_VERSION")));
+                }
                 _ => (),
             }
         }
@@ -363,25 +348,6 @@ fn on_window_size_or_position_change(window: &Window, settings: &Settings) {
 /// Slightly cheaper special case that can only handle window position changes. Do not use this if the window size may have changed.
 fn on_window_position_change(window: &Window, settings: &Settings) {
     window.set_outer_position(compute_window_coordinates(window, settings));
-}
-
-fn speed_ramp(held_count: u32) -> u32 {
-    if held_count < 10 {
-        // 0-9
-        1
-    } else if held_count < 20 {
-        // 10-19
-        4
-    } else if held_count < 40 {
-        // 20-39
-        16
-    } else if held_count < 60 {
-        // 40-59
-        32
-    } else {
-        // 60+
-        64
-    }
 }
 
 /// Compute the correct coordinates of the top-left of the window in order to center the crosshair in the primary monitor
@@ -499,8 +465,13 @@ fn init_gui(event_loop: &EventLoop<()>, settings: &Settings) -> Window {
 
 enum DialogRequest {
     PngPath,
+    Info(String),
     Warning(String),
     Terminate,
+}
+
+pub fn show_info(text: String) {
+    let _ = DIALOG_REQUEST_SENDER.with(|sender| sender.send(DialogRequest::Info(text)));
 }
 
 pub fn show_warning(text: String) {

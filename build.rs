@@ -22,7 +22,13 @@ static CONSTANTS_SOURCE_NAME: &str = "constants.rs";
 static TRAY_ICON_NAME: &str = "trayicon.argb";
 static APP_ICON_NAME: &str = "app.ico";
 static APP_NAME: &str = "Simple Crosshair Overlay";
-static APP_NAME_DEBUG: &str = "Simple Crosshair Overlay [DEBUG BUILD]";
+
+// Put in some indication that a build was in debug profile so there's a chance someone with the wrong build might one day notice
+static APP_NAME_DEBUG: &str = if cfg!(debug_assertions) {
+    "Simple Crosshair Overlay [DEBUG BUILD]"
+} else {
+    APP_NAME
+};
 
 fn main() -> io::Result<()> {
     let out_dir: PathBuf = env::var("OUT_DIR").expect("bad out dir?").into();
@@ -46,17 +52,10 @@ fn main() -> io::Result<()> {
         let icon_path = out_dir.join(APP_ICON_NAME);
         generate_file_if_not_cached(icon_path.as_path(), create_windows_app_icon_file)?;
 
-        // Put in some indication that a build was in debug profile so there's a chance someone with the wrong build might one day notice
-        let description = if cfg!(debug_assertions) {
-            APP_NAME_DEBUG
-        } else {
-            APP_NAME
-        };
-
         winres::WindowsResource::new()
             .set_icon(icon_path.to_str().expect("bad icon path?"))
             .set("ProductName", APP_NAME)
-            .set("FileDescription", description) // Windows presents this to users in a few places. Notably file properties and Task Manager.
+            .set("FileDescription", APP_NAME_DEBUG) // Windows presents this to users in a few places. Notably file properties and Task Manager.
             .set("InternalName", APP_NAME)
             .set("LegalCopyright", "Copyright © 2023 Michael Ripley")
             .set_language(0x0009) // english
@@ -83,7 +82,8 @@ fn generate_file_if_not_cached<F, R>(path: &Path, generator: F) -> io::Result<Op
 fn create_constants(path: &Path) -> io::Result<()> {
     let file = fs::File::create(path)?;
     let mut writer = BufWriter::new(file);
-    writer.write_fmt(format_args!("pub const TRAY_ICON_DIMENSION: u32 = {TRAY_ICON_DIMENSION};"))?;
+    writer.write_fmt(format_args!("pub const TRAY_ICON_DIMENSION: u32 = {TRAY_ICON_DIMENSION};\n"))?;
+    writer.write_fmt(format_args!("pub const APPLICATION_NAME: &str = {APP_NAME_DEBUG:?};\n"))?;
     writer.flush()
 }
 
