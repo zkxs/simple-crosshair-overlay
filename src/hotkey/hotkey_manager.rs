@@ -2,6 +2,14 @@
 // See LICENSE file for full text.
 // Copyright © 2023 Michael Ripley
 
+//! Hotkey input system.
+//!
+//! The idea here is to do as much work as possible up front once, thereby minimizing
+//! the hot part of it: polling the keyboard state and extracting what we care about.
+//!
+//! We care about if certain key combinations are pressed. To make this really fast, I make
+//! heavy use of bitmasks.
+
 use device_query::Keycode as DeviceQueryKeycode;
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +18,7 @@ use super::keycode_to_table_index;
 
 const KEYCODE_LENGTH: usize = 96;
 
-type Bitmask = u32;
+type Bitmask = u32; // the number of bits in this mask is the number of distinct keys that can be used across all keybinds
 type KeyBinding = Vec<Keycode>;
 
 /// format user can specify keybindings with
@@ -56,34 +64,36 @@ struct KeyBuffer {
 }
 
 impl KeyBuffer {
-    fn new(key_bindings: &KeyBindings) -> KeyBuffer {
+    fn new(key_bindings: &KeyBindings) -> Result<KeyBuffer, &'static str> {
         let mut bit = 1;
 
         let mut lookup_table = [0; KEYCODE_LENGTH];
-        let up_mask = update_keybuffer_values(&key_bindings.up, &mut bit, &mut lookup_table);
-        let down_mask = update_keybuffer_values(&key_bindings.down, &mut bit, &mut lookup_table);
-        let left_mask = update_keybuffer_values(&key_bindings.left, &mut bit, &mut lookup_table);
-        let right_mask = update_keybuffer_values(&key_bindings.right, &mut bit, &mut lookup_table);
-        let scale_increase_mask = update_keybuffer_values(&key_bindings.scale_increase, &mut bit, &mut lookup_table);
-        let scale_decrease_mask = update_keybuffer_values(&key_bindings.scale_decrease, &mut bit, &mut lookup_table);
-        let toggle_hidden_mask = update_keybuffer_values(&key_bindings.toggle_hidden, &mut bit, &mut lookup_table);
-        let toggle_adjust_mask = update_keybuffer_values(&key_bindings.toggle_adjust, &mut bit, &mut lookup_table);
+        let up_mask = update_key_buffer_values(&key_bindings.up, &mut bit, &mut lookup_table)?;
+        let down_mask = update_key_buffer_values(&key_bindings.down, &mut bit, &mut lookup_table)?;
+        let left_mask = update_key_buffer_values(&key_bindings.left, &mut bit, &mut lookup_table)?;
+        let right_mask = update_key_buffer_values(&key_bindings.right, &mut bit, &mut lookup_table)?;
+        let scale_increase_mask = update_key_buffer_values(&key_bindings.scale_increase, &mut bit, &mut lookup_table)?;
+        let scale_decrease_mask = update_key_buffer_values(&key_bindings.scale_decrease, &mut bit, &mut lookup_table)?;
+        let toggle_hidden_mask = update_key_buffer_values(&key_bindings.toggle_hidden, &mut bit, &mut lookup_table)?;
+        let toggle_adjust_mask = update_key_buffer_values(&key_bindings.toggle_adjust, &mut bit, &mut lookup_table)?;
         let any_movement_mask = up_mask | down_mask | left_mask | right_mask;
         let any_scale_mask = scale_increase_mask | scale_decrease_mask;
 
-        KeyBuffer {
-            lookup_table,
-            up_mask,
-            down_mask,
-            left_mask,
-            right_mask,
-            scale_increase_mask,
-            scale_decrease_mask,
-            toggle_hidden_mask,
-            toggle_adjust_mask,
-            any_movement_mask,
-            any_scale_mask,
-        }
+        Ok(
+            KeyBuffer {
+                lookup_table,
+                up_mask,
+                down_mask,
+                left_mask,
+                right_mask,
+                scale_increase_mask,
+                scale_decrease_mask,
+                toggle_hidden_mask,
+                toggle_adjust_mask,
+                any_movement_mask,
+                any_scale_mask,
+            }
+        )
     }
 
     fn keycode_to_mask(&self, keycode: &DeviceQueryKeycode) -> Bitmask {
@@ -149,14 +159,16 @@ pub struct HotkeyManager {
 }
 
 impl HotkeyManager {
-    pub fn new(key_bindings: &KeyBindings) -> HotkeyManager {
-        HotkeyManager {
-            previous_state: 0,
-            state: 0,
-            movement_key_held_frames: 0,
-            scale_key_held_frames: 0,
-            key_buffer: Box::new(KeyBuffer::new(key_bindings)),
-        }
+    pub fn new(key_bindings: &KeyBindings) -> Result<HotkeyManager, &'static str> {
+        Ok(
+            HotkeyManager {
+                previous_state: 0,
+                state: 0,
+                movement_key_held_frames: 0,
+                scale_key_held_frames: 0,
+                key_buffer: Box::new(KeyBuffer::new(key_bindings)?),
+            }
+        )
     }
 
     /// updates state with current key data
@@ -239,21 +251,29 @@ impl HotkeyManager {
     }
 }
 
-fn update_keybuffer_values(key_combination: &[Keycode], bit: &mut Bitmask, lookup_table: &mut [Bitmask; KEYCODE_LENGTH]) -> Bitmask {
+impl Default for HotkeyManager {
+    fn default() -> Self {
+        HotkeyManager::new(&KeyBindings::default()).expect("default keybindings were invalid")
+    }
+}
+
+fn update_key_buffer_values(key_combination: &[Keycode], bit: &mut Bitmask, lookup_table: &mut [Bitmask; KEYCODE_LENGTH]) -> Result<Bitmask, &'static str> {
     let mut mask: Bitmask = 0;
     for keycode in key_combination {
         let lookup_table_mask = &mut lookup_table[keycode_to_table_index(&keycode.into())];
         if *lookup_table_mask == 0 {
+            // if the previous shift overflowed the mask will be zero
+            if *bit == 0 {
+                return Err("Only 32 distinct keys may be used for hotkeys at this time. Congratulations if you're seeing this, as I didn't think anyone would be crazy enough to use that many keys.");
+            }
+
             // generate a new mask and add to the table
             *lookup_table_mask = *bit;
-            let (shifted, overflow) = (*bit).overflowing_shl(1);
-            *bit = shifted;
-            //TODO: support using more than 32 keys in your key mapping... or at least yell at the user instead of panicking
-            assert!(!overflow, "`bit <<= 1` overflowed");
+            *bit <<= 1;
         }
         mask |= *lookup_table_mask;
     }
-    mask
+    Ok(mask)
 }
 
 fn move_ramp(frames: u32) -> u32 {

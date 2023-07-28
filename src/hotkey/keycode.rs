@@ -2,6 +2,8 @@
 // See LICENSE file for full text.
 // Copyright © 2023 Michael Ripley
 
+//! Listing of all keycodes and conversions between other keycode types
+
 use device_query::Keycode as DeviceQueryKeycode;
 use serde::{Deserialize, Serialize};
 

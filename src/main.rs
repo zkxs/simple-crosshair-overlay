@@ -23,7 +23,7 @@ use winit::event_loop::EventLoop;
 use winit::platform::windows::WindowBuilderExtWindows;
 use winit::window::{Window, WindowBuilder, WindowLevel};
 
-use crate::hotkey::{HotkeyManager, KeyBindings};
+use crate::hotkey::HotkeyManager;
 use crate::settings::Settings;
 
 mod settings;
@@ -67,6 +67,14 @@ fn main() {
         }
     };
     let mut settings = Box::new(settings);
+
+    let mut hotkey_manager = match HotkeyManager::new(&settings.persisted.key_bindings) {
+        Ok(hotkey_manager) => hotkey_manager,
+        Err(e) => {
+            show_warning(format!("{e}\n\nUsing default hotkeys."));
+            HotkeyManager::default()
+        }
+    };
 
     let tray_menu = Menu::new();
 
@@ -180,7 +188,6 @@ fn main() {
         }).unwrap();
 
     let device_state = DeviceState::new();
-    let mut hotkey_manager = HotkeyManager::new(&KeyBindings::default());
 
     // unsafe note: these three structs MUST live and die together.
     // It is highly illegal to use the context or surface after the window is dropped.

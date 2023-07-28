@@ -2,6 +2,15 @@
 // See LICENSE file for full text.
 // Copyright © 2023 Michael Ripley
 
+//! Numeric utilities
+
+use std::time::Duration;
+
+pub fn fps_to_tick_interval(fps: u32) -> Duration {
+    let millis = 1000.div_ceil_placeholder(fps);
+    Duration::from_millis(millis as u64)
+}
+
 pub trait DivCeil {
     /// Intentionally _not_ named `div_ceil` to avoid name conflicts with an
     /// [unstable feature I can't use](https://github.com/rust-lang/rust/issues/88581). Thanks Rust.

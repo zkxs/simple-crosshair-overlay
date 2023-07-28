@@ -2,4 +2,7 @@
 // See LICENSE file for full text.
 // Copyright © 2023 Michael Ripley
 
+//! Various utilities
+
 pub mod numeric;
+pub mod image;
