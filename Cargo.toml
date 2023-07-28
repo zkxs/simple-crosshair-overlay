@@ -1,6 +1,6 @@
 [package]
 name = "simple-crosshair-overlay"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Michael Ripley <zkxs00@gmail.com"]
 description = "A simple native crosshair overlay"
 edition = "2021"

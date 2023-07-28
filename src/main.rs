@@ -9,7 +9,6 @@ use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::Mutex;
-use std::time::Duration;
 
 use device_query::{DeviceQuery, DeviceState};
 use lazy_static::lazy_static;
@@ -30,8 +29,7 @@ use crate::settings::Settings;
 mod settings;
 mod custom_serializer;
 mod hotkey;
-
-const KEY_PROCESS_INTERVAL: Duration = Duration::from_millis(17);
+mod util;
 
 static ICON_TOOLTIP: &str = "Simple Crosshair Overlay";
 
@@ -171,12 +169,13 @@ fn main() {
     let event_loop = EventLoop::new();
 
     let user_event_sender = event_loop.create_proxy();
+    let key_process_interval = settings.tick_interval;
     std::thread::Builder::new()
         .name("tick-sender".to_string())
         .spawn(move || {
             loop {
                 let _ = user_event_sender.send_event(());
-                std::thread::sleep(KEY_PROCESS_INTERVAL);
+                std::thread::sleep(key_process_interval);
             }
         }).unwrap();
 

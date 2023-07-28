@@ -5,6 +5,7 @@
 use std::{fs, io, mem};
 use std::fs::File;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use png::ColorType;
 use serde::{Deserialize, Serialize};
@@ -12,10 +13,17 @@ use winit::dpi::PhysicalSize;
 
 use crate::{CONFIG_PATH, show_warning};
 use crate::hotkey::KeyBindings;
+use crate::util::numeric::DivCeil;
 
 const DEFAULT_OFFSET_X: i32 = 0;
 const DEFAULT_OFFSET_Y: i32 = 0;
 const DEFAULT_SIZE: u32 = 4;
+const DEFAULT_FPS: u32 = 60;
+
+// needed for serde, as it can't read constants directly
+const fn default_fps() -> u32 {
+    DEFAULT_FPS
+}
 
 #[derive(Deserialize, Serialize)]
 pub struct PersistedSettings {
@@ -25,6 +33,8 @@ pub struct PersistedSettings {
     pub window_height: u32,
     #[serde(with = "crate::custom_serializer::argb_color")]
     color: u32,
+    #[serde(default = "default_fps")]
+    fps: u32,
     image_path: Option<PathBuf>,
     #[serde(default)]
     key_bindings: KeyBindings,
@@ -50,10 +60,13 @@ impl PersistedSettings {
             None
         };
 
+        let tick_interval = fps_to_tick_interval(self.fps);
+
         Settings {
             persisted: self,
             color,
             image,
+            tick_interval,
         }
     }
 }
@@ -66,6 +79,7 @@ impl Default for PersistedSettings {
             window_width: DEFAULT_SIZE,
             window_height: DEFAULT_SIZE,
             color: 0xB2FF0000, // 70% alpha red
+            fps: DEFAULT_FPS,
             image_path: None,
             key_bindings: KeyBindings::default(),
         }
@@ -82,6 +96,7 @@ pub struct Settings {
     pub persisted: PersistedSettings,
     pub color: u32,
     pub image: Option<Image>,
+    pub tick_interval: Duration,
 }
 
 impl Settings {
@@ -136,6 +151,7 @@ impl Default for Settings {
             persisted: savable,
             color,
             image: None,
+            tick_interval: fps_to_tick_interval(DEFAULT_FPS),
         }
     }
 }
@@ -174,6 +190,11 @@ fn premultiply_alpha(argb_color: u32) -> u32 {
     argb_color
 }
 
+fn fps_to_tick_interval(fps: u32) -> Duration {
+    let millis = 1000.div_ceil_placeholder(fps);
+    Duration::from_millis(millis as u64)
+}
+
 fn load_png(path: &Path) -> io::Result<Image> {
     let file = File::open(path)?;
     let decoder = png::Decoder::new(file);
@@ -181,7 +202,7 @@ fn load_png(path: &Path) -> io::Result<Image> {
 
     // make a buffer of the correct size to hold the reader's data, but as u32's instead of u8's
     const RATIO: usize = mem::size_of::<u32>() / mem::size_of::<u8>();
-    let mut buf: Vec<u32> = Vec::with_capacity(div_ceil(reader.output_buffer_size(), RATIO));
+    let mut buf: Vec<u32> = Vec::with_capacity(reader.output_buffer_size().div_ceil_placeholder(RATIO));
     #[allow(clippy::uninit_vec)]
     unsafe {
         // there is no requirement I send a zeroed buffer to the PNG decoding library.
@@ -217,14 +238,4 @@ fn load_png(path: &Path) -> io::Result<Image> {
     };
 
     Ok(image)
-}
-
-const fn div_ceil(lhs: usize, rhs: usize) -> usize {
-    let quotient = lhs / rhs;
-    let remainder = lhs % rhs;
-    if remainder > 0 {
-        quotient + 1
-    } else {
-        quotient
-    }
 }
