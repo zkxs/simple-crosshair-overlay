@@ -18,7 +18,8 @@ use super::keycode_to_table_index;
 
 const KEYCODE_LENGTH: usize = 96;
 
-type Bitmask = u32; // the number of bits in this mask is the number of distinct keys that can be used across all keybinds
+/// the number of bits in this mask is the number of distinct keys that can be used across all keybinds
+type Bitmask = u32;
 type KeyBinding = Vec<Keycode>;
 
 /// format user can specify keybindings with
@@ -155,7 +156,7 @@ pub struct HotkeyManager {
     state: Bitmask,
     movement_key_held_frames: u32,
     scale_key_held_frames: u32,
-    key_buffer: Box<KeyBuffer>,
+    key_buffer: KeyBuffer,
 }
 
 impl HotkeyManager {
@@ -166,18 +167,18 @@ impl HotkeyManager {
                 state: 0,
                 movement_key_held_frames: 0,
                 scale_key_held_frames: 0,
-                key_buffer: Box::new(KeyBuffer::new(key_bindings)?),
+                key_buffer: KeyBuffer::new(key_bindings)?,
             }
         )
     }
 
     /// updates state with current key data
-    pub fn process_keys(&mut self, keys: Vec<DeviceQueryKeycode>) {
+    pub fn process_keys(&mut self, keys: &[DeviceQueryKeycode]) {
         self.previous_state = self.state;
 
         // calculate state
         let key_buffer: &KeyBuffer = &self.key_buffer;
-        key_buffer.update(&mut self.state, &keys);
+        key_buffer.update(&mut self.state, keys);
 
         self.movement_key_held_frames = if key_buffer.any_movement(self.state) {
             self.movement_key_held_frames + 1

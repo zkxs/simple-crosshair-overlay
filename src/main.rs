@@ -58,23 +58,26 @@ mod build_constants {
 }
 
 fn main() {
-    let settings = match Settings::load() {
-        Ok(settings) => settings,
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Settings::default(), // generate new settings file when it doesn't exist
-        Err(e) => {
-            show_warning(format!("Error loading settings file \"{}\". Resetting to default settings.\n\n{}", CONFIG_PATH.display(), e));
-            Settings::default()
+    let mut settings = Box::new(
+        match Settings::load() {
+            Ok(settings) => settings,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Settings::default(), // generate new settings file when it doesn't exist
+            Err(e) => {
+                show_warning(format!("Error loading settings file \"{}\". Resetting to default settings.\n\n{}", CONFIG_PATH.display(), e));
+                Settings::default()
+            }
         }
-    };
-    let mut settings = Box::new(settings);
+    );
 
-    let mut hotkey_manager = match HotkeyManager::new(&settings.persisted.key_bindings) {
-        Ok(hotkey_manager) => hotkey_manager,
-        Err(e) => {
-            show_warning(format!("{e}\n\nUsing default hotkeys."));
-            HotkeyManager::default()
+    let mut hotkey_manager = Box::new(
+        match HotkeyManager::new(&settings.persisted.key_bindings) {
+            Ok(hotkey_manager) => hotkey_manager,
+            Err(e) => {
+                show_warning(format!("{e}\n\nUsing default hotkeys."));
+                HotkeyManager::default()
+            }
         }
-    };
+    );
 
     let tray_menu = Menu::new();
 
@@ -218,7 +221,7 @@ fn main() {
             }
             Event::UserEvent(_) => {
                 let keys = device_state.get_keys();
-                hotkey_manager.process_keys(keys);
+                hotkey_manager.process_keys(&keys);
 
                 if adjust_button.is_checked() {
                     let mut window_position_dirty = false;
