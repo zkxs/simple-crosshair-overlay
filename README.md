@@ -41,17 +41,22 @@ Use the tray icon to:
 
 In **Adjust Mode**, use the arrow keys to move the crosshair and PageUp/PageDown to increase/decrease the crosshair scale.
 
-Color cannot currently be changed in-application. However, it can be manually altered by editing the `color` setting in
-`%appdata%\simple-crosshair-overlay\config\config.toml` to an ARGB hexadecimal value.
+### Horrible Config Editing
+
+**Color** of the default crosshair cannot currently be changed in-application. However, it can be manually altered by
+editing the `color` setting in `%appdata%\simple-crosshair-overlay\config\config.toml` to an ARGB hexadecimal value.
 So for example `B2FF0000` for red with a bit of transparency, or `FF00FF00` for fully opaque green.
+
+**Hotkeys** cannot currently be changed in-application. However, they can be manually altered by changing configs in the
+`key_bindings` section of config.toml using the Keycode values defined in [keycode.rs](src/hotkey/keycode.rs).
 
 ## To-Do
 
 Maybe one day I'll get around to these features:
 
 - Support changing color of built-in crosshair _without_ manual config editing
+- Customizable hotkeys _without_ manual config editing
 - Verify if it works on MacOS/Linux
-- Customizable hotkeys
 
 <!-- TODO: publish crate
 ## Installing from Source
@@ -65,6 +70,8 @@ Maybe one day I'll get around to these features:
 1. [Install Rust](https://www.rust-lang.org/tools/install)
 2. Clone the project
 3. `cargo build --release`
+   or alternatively for a slightly smaller binary, `cargo +nightly build -Z build-std=std --release`.
+   See [min-sized-rust](https://github.com/johnthagen/min-sized-rust) for an explanation.
 
 ## License
 
