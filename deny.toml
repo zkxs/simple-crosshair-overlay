@@ -102,18 +102,7 @@ unlicensed = "deny"
 # See https://spdx.org/licenses/ for list of possible licenses
 # [possible values: any SPDX 3.11 short identifier (+ optional exception)].
 allow = [
-    # Annoyingly there's no setting to allow all FSF licenses. See https://github.com/EmbarkStudios/cargo-deny/issues/210.
-    # Also annoyling cargo deny screams if an allow is unused. I'll just have to add more licenses as needed until the above issue is resolved.
-    "Apache-2.0 WITH LLVM-exception", # More permissive than normal Apache-2.0. Needed by target-lexicon.
-    "Apache-2.0",
-    "BSD-2-Clause",
-    "BSD-3-Clause",
-    "GPL-3.0",
-    "ISC",
-    "MIT",
-    "MPL-2.0",
     "Unicode-DFS-2016", # OSI but not FSF approved. Needed by unicode-ident.
-    "Zlib",
 ]
 # List of explicitly disallowed licenses
 # See https://spdx.org/licenses/ for list of possible licenses
@@ -126,10 +115,12 @@ copyleft = "allow"
 # Blanket approval or denial for OSI-approved or FSF Free/Libre licenses
 # * both - The license will be approved if it is both OSI-approved *AND* FSF
 # * either - The license will be approved if it is either OSI-approved *OR* FSF
+# * osi - The license will be approved if it is OSI approved
+# * fsf - The license will be approved if it is FSF Free
 # * osi-only - The license will be approved if is OSI-approved *AND NOT* FSF
 # * fsf-only - The license will be approved if is FSF *AND NOT* OSI-approved
 # * neither - This predicate is ignored and the default lint level is used
-allow-osi-fsf-free = "neither"
+allow-osi-fsf-free = "fsf"
 # Lint level used when no other predicates are matched
 # 1. License isn't in the allow or deny lists
 # 2. License isn't copyleft
