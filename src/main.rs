@@ -7,7 +7,7 @@
 use std::io;
 use std::num::NonZeroU32;
 use std::path::PathBuf;
-use std::sync::{Arc, mpsc};
+use std::sync::mpsc;
 use std::sync::Mutex;
 
 use device_query::{DeviceQuery, DeviceState};
@@ -16,7 +16,8 @@ use native_dialog::{FileDialog, MessageDialog, MessageType};
 use softbuffer::{Context, Surface};
 use tray_icon::{menu::Menu, TrayIconBuilder};
 use tray_icon::icon::Icon as TrayIcon;
-use tray_icon::menu::{CheckMenuItem, MenuEvent, MenuItem, MenuItemExt, Submenu};
+use tray_icon::menu::{CheckMenuItem, IsMenuItem, MenuEvent, MenuItem, Submenu};
+use tray_icon::menu::Result as MenuResult;
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::event::Event;
 use winit::event_loop::EventLoop;
@@ -100,6 +101,8 @@ fn main() {
     };
 
     #[cfg(target_os = "linux")] let menu_items = {
+        use std::sync::Arc;
+
         let menu_items = Arc::new(MenuItems::default());
         let menu_items_clone = menu_items.clone();
 
@@ -525,28 +528,28 @@ impl Default for MenuItems {
 
 impl MenuItems {
     fn add_to_menu<T>(&self, menu: &T) where T: AppendableMenu {
-        menu.append(&self.visible_button);
-        menu.append(&self.adjust_button);
-        menu.append(&self.image_pick_button);
-        menu.append(&self.reset_button);
-        menu.append(&self.about_button);
-        menu.append(&self.exit_button);
+        menu.append(&self.visible_button).unwrap();
+        menu.append(&self.adjust_button).unwrap();
+        menu.append(&self.image_pick_button).unwrap();
+        menu.append(&self.reset_button).unwrap();
+        menu.append(&self.about_button).unwrap();
+        menu.append(&self.exit_button).unwrap();
     }
 }
 
 trait AppendableMenu {
-    fn append(&self, item: &dyn MenuItemExt);
+    fn append(&self, item: &dyn IsMenuItem) -> MenuResult<()>;
 }
 
 impl AppendableMenu for Menu {
-    fn append(&self, item: &dyn MenuItemExt) {
-        self.append(item);
+    fn append(&self, item: &dyn IsMenuItem) -> MenuResult<()> {
+        self.append(item)
     }
 }
 
 impl AppendableMenu for Submenu {
-    fn append(&self, item: &dyn MenuItemExt) {
-        self.append(item);
+    fn append(&self, item: &dyn IsMenuItem) -> MenuResult<()> {
+        self.append(item)
     }
 }
 
