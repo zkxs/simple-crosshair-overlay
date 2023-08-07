@@ -73,13 +73,13 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
-          components: rust-src
           target: ${{ matrix.target.triple }}
       - name: Setup Rust nightly toolchain
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: nightly
+          components: rust-src
           target: ${{ matrix.target.triple }}
       - name: Install extra Linux dependencies
         if: matrix.target.runs-on == 'ubuntu-latest'
