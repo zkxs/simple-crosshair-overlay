@@ -68,12 +68,18 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Setup Rust toolchain
+      - name: Setup Rust stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: rust-src
+          target: ${{ matrix.target.triple }}
+      - name: Setup Rust nightly toolchain
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: nightly
-          components: rust-src
           target: ${{ matrix.target.triple }}
       - name: Install extra Linux dependencies
         if: matrix.target.runs-on == 'ubuntu-latest'
