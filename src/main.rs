@@ -441,17 +441,20 @@ fn get_icon() -> TrayIcon {
 }
 
 fn init_gui(event_loop: &EventLoop<()>, settings: &Settings) -> Window {
-    let window = WindowBuilder::new()
+    let window_builder = WindowBuilder::new()
         .with_visible(false) // things get very buggy on Windows if you default the window to invisible...
         .with_transparent(true)
         .with_decorations(false)
         .with_resizable(false)
-        .with_drag_and_drop(false)
-        .with_skip_taskbar(true)
         .with_title("Simple Crosshair Overlay")
         .with_position(PhysicalPosition::new(0, 0)) // can't determine monitor size until the window is created, so just use some dummy values
-        .with_inner_size(PhysicalSize::new(1, 1)) // this might flicker so make it very tiny
-        .build(event_loop)
+        .with_inner_size(PhysicalSize::new(1, 1)); // this might flicker so make it very tiny
+
+    #[cfg(target_os = "windows")] let window_builder = window_builder
+        .with_drag_and_drop(false)
+        .with_skip_taskbar(true);
+
+    let window = window_builder.build(event_loop)
         .unwrap();
 
     // contrary to all my expectations this call appears to work reliably

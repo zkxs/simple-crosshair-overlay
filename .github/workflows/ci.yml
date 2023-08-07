@@ -41,7 +41,9 @@ jobs:
           profile: minimal
           toolchain: stable
       - name: Install extra Linux dependencies
-        run: sudo apt-get install -y libgtk-3-dev # gdk-sys needs {libgtk-3-dev}.
+        run: | # gdk-sys needs {libgtk-3-dev}.
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev
       - name: Check
         run: cargo check
       - name: Test
