@@ -327,6 +327,9 @@ fn main() {
                     control_flow.set_exit();
                     break;
                 }
+                id if id == menu_items.visible_button.id() => {
+                    window.set_visible(menu_items.visible_button.is_checked());
+                }
                 id if id == menu_items.reset_button.id() => {
                     settings.reset();
                     force_redraw = true;
