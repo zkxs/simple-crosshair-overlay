@@ -1,0 +1,46 @@
+# This file is part of simple-crosshair-overlay and is licenced under the GNU GPL v3.0.
+# See LICENSE file for full text.
+# Copyright © 2023 Michael Ripley
+
+name: CI
+on:
+  pull_request:
+    branches:
+      - master # run for pull requests that target master
+    paths:
+      - Cargo.lock
+      - Cargo.toml
+      - deny.toml
+      - build.rs
+      - src/**
+jobs:
+  cargo-deny:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: EmbarkStudios/cargo-deny-action@v1
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: git checkout
+        uses: actions/checkout@v3
+      - name: Setup workflow cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+      - name: Check
+        run: cargo check
+      - name: Test
+        run: cargo test
