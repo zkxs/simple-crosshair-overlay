@@ -16,7 +16,7 @@ use native_dialog::{FileDialog, MessageDialog, MessageType};
 use softbuffer::{Context, Surface};
 use tray_icon::{menu::Menu, TrayIconBuilder};
 use tray_icon::icon::Icon as TrayIcon;
-use tray_icon::menu::{CheckMenuItem, MenuEvent, MenuItem};
+use tray_icon::menu::{CheckMenuItem, MenuEvent, MenuItem, MenuItemExt, Submenu};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::event::Event;
 use winit::event_loop::EventLoop;
@@ -78,33 +78,56 @@ fn main() {
         }
     );
 
-    let tray_menu = Menu::new();
+    // on non-linux we need this in scope
+    #[cfg(not(target_os = "linux"))] let tray_menu = Menu::new();
 
-    // on non-mac just append directly to the menu itself
-    #[cfg(not(target_os = "macos"))] let root_menu = &tray_menu;
-    // on mac all menu items must be in a submenu, so just make one with no name. Hope that doesn't cause problems...
-    #[cfg(target_os = "macos")] let root_menu = {
-        let submenu = tray_icon::menu::Submenu::new("", true);
-        tray_menu.append(&submenu);
-        submenu
+    // windows: icon must be created on same thread as event loop
+    #[cfg(target_os = "windows")] let menu_items = {
+        let menu_items = MenuItems::default();
+        menu_items.add_to_menu(&tray_menu);
+        menu_items
     };
 
-    let visible_button = CheckMenuItem::new("Visible", true, true, None);
-    let adjust_button = CheckMenuItem::new("Adjust", true, false, None);
-    let image_pick_button = MenuItem::new("Load Image", true, None);
-    let reset_button = MenuItem::new("Reset Overlay", true, None);
-    let about_button = MenuItem::new("About", true, None);
-    let exit_button = MenuItem::new("Exit", true, None);
-    root_menu.append(&visible_button);
-    root_menu.append(&adjust_button);
-    root_menu.append(&image_pick_button);
-    root_menu.append(&reset_button);
-    root_menu.append(&about_button);
-    root_menu.append(&exit_button);
+    // mac: icon and event loop must be created on main thread
+    #[cfg(target_os = "macos")] let menu_items = {
+        // on mac all menu items must be in a submenu, so just make one with no name. Hope that doesn't cause problems...
+        let submenu = tray_icon::menu::Submenu::new("", true);
+        tray_menu.append(&submenu);
+
+        let menu_items = MenuItems::default();
+        menu_items.add_to_menu(&submenu);
+        menu_items
+    };
+
+    #[cfg(target_os = "linux")] let menu_items = {
+        let menu_items = MenuItems::default();
+        let menu_items_clone = menu_items.clone();
+
+        std::thread::Builder::new()
+            .name("gtk-main".to_string())
+            .spawn(|| {
+                gtk::init().unwrap();
+
+                let tray_menu = Menu::new();
+                menu_items_clone.add_to_menu(&tray_menu);
+
+                // linux: icon must be created on same thread as gtk main loop,
+                // and therefore can NOT be on the same thread as the event loop despite the tray-icon docs saying otherwise.
+                // This means it's impossible to have it in scope for dropping later from the event loop
+                TrayIconBuilder::new()
+                    .with_menu(Box::new(tray_menu))
+                    .with_tooltip(ICON_TOOLTIP)
+                    .with_icon(get_icon())
+                    .build()
+                    .unwrap();
+
+                gtk::main();
+            }).unwrap();
+
+        menu_items
+    };
 
     // keep the tray icon in an Option so we can take() it later to drop
-    // windows: icon must be created on same thread as event loop
-    // mac: icon and event loop must be created on main thread
     #[cfg(not(target_os = "linux"))] let mut tray_icon = Some(
         TrayIconBuilder::new()
             .with_menu(Box::new(tray_menu))
@@ -113,29 +136,6 @@ fn main() {
             .build()
             .unwrap()
     );
-
-    #[cfg(target_os = "linux")]
-    {
-        let tray_menu = Box::new(tray_menu);
-
-        std::thread::Builder::new()
-            .name("gtk-main".to_string())
-            .spawn(|| {
-                gtk::init().unwrap();
-
-                // linux: icon must be created on same thread as gtk main loop,
-                // and therefore can NOT be on the same thread as the event loop despite the tray-icon docs saying otherwise.
-                // This means it's impossible to have it in scope for dropping later from the event loop
-                TrayIconBuilder::new()
-                    .with_menu(tray_menu)
-                    .with_tooltip(ICON_TOOLTIP)
-                    .with_icon(get_icon())
-                    .build()
-                    .unwrap();
-
-                gtk::main();
-            }).unwrap();
-    }
 
     let (file_path_sender, file_path_receiver) = mpsc::channel();
     let dialog_request_receiver = DIALOG_REQUEST_CHANNEL.1.lock().unwrap().take().unwrap();
@@ -226,7 +226,7 @@ fn main() {
                 let keys = device_state.get_keys();
                 hotkey_manager.process_keys(&keys);
 
-                if adjust_button.is_checked() {
+                if menu_items.adjust_button.is_checked() {
                     let mut window_position_dirty = false;
                     let mut window_scale_dirty = false;
 
@@ -265,7 +265,7 @@ fn main() {
 
                     // adjust button is already checked
                     if hotkey_manager.toggle_adjust() {
-                        adjust_button.set_checked(false)
+                        menu_items.adjust_button.set_checked(false)
                     }
 
                     if window_scale_dirty {
@@ -275,14 +275,14 @@ fn main() {
                     }
                 } else if hotkey_manager.toggle_adjust() {
                     // adjust button is NOT checked
-                    adjust_button.set_checked(true)
+                    menu_items.adjust_button.set_checked(true)
                 }
 
                 if hotkey_manager.toggle_hidden() {
                     window_visible = !window_visible;
                     window.set_visible(window_visible);
                     if !window_visible {
-                        adjust_button.set_checked(false)
+                        menu_items.adjust_button.set_checked(false)
                     }
                 }
             }
@@ -290,7 +290,7 @@ fn main() {
         }
 
         if let Ok(path) = file_path_receiver.try_recv() {
-            image_pick_button.set_enabled(true);
+            menu_items.image_pick_button.set_enabled(true);
 
             if let Some(path) = path {
                 match settings.load_png(path) {
@@ -305,7 +305,7 @@ fn main() {
 
         while let Ok(event) = menu_channel.try_recv() {
             match event.id {
-                id if id == exit_button.id() => {
+                id if id == menu_items.exit_button.id() => {
                     // drop the tray icon, solving the funny Windows issue where it lingers after application close
                     #[cfg(not(target_os = "linux"))]
                     tray_icon.take(); // yeah this is simply impossible on Linux, so good luck dropping this at the correct time :)
@@ -324,16 +324,16 @@ fn main() {
                     control_flow.set_exit();
                     break;
                 }
-                id if id == reset_button.id() => {
+                id if id == menu_items.reset_button.id() => {
                     settings.reset();
                     force_redraw = true;
                     on_window_size_or_position_change(&window, &settings);
                 }
-                id if id == image_pick_button.id() => {
-                    image_pick_button.set_enabled(false);
+                id if id == menu_items.image_pick_button.id() => {
+                    menu_items.image_pick_button.set_enabled(false);
                     let _ = DIALOG_REQUEST_SENDER.with(|sender| sender.send(DialogRequest::PngPath));
                 }
-                id if id == about_button.id() => {
+                id if id == menu_items.about_button.id() => {
                     show_info(format!("{}\nversion {}", build_constants::APPLICATION_NAME, env!("CARGO_PKG_VERSION")));
                 }
                 _ => (),
@@ -481,13 +481,6 @@ fn init_gui(event_loop: &EventLoop<()>, settings: &Settings) -> Window {
     window
 }
 
-enum DialogRequest {
-    PngPath,
-    Info(String),
-    Warning(String),
-    Terminate,
-}
-
 pub fn show_info(text: String) {
     let _ = DIALOG_REQUEST_SENDER.with(|sender| sender.send(DialogRequest::Info(text)));
 }
@@ -498,4 +491,68 @@ pub fn show_warning(text: String) {
 
 pub fn terminate_dialog_worker() {
     let _ = DIALOG_REQUEST_SENDER.with(|sender| sender.send(DialogRequest::Terminate));
+}
+
+#[derive(Clone)]
+struct MenuItems {
+    visible_button: CheckMenuItem,
+    adjust_button: CheckMenuItem,
+    image_pick_button: MenuItem,
+    reset_button: MenuItem,
+    about_button: MenuItem,
+    exit_button: MenuItem,
+}
+
+impl Default for MenuItems {
+    fn default() -> Self {
+        let visible_button = CheckMenuItem::new("Visible", true, true, None);
+        let adjust_button = CheckMenuItem::new("Adjust", true, false, None);
+        let image_pick_button = MenuItem::new("Load Image", true, None);
+        let reset_button = MenuItem::new("Reset Overlay", true, None);
+        let about_button = MenuItem::new("About", true, None);
+        let exit_button = MenuItem::new("Exit", true, None);
+
+        MenuItems {
+            visible_button,
+            adjust_button,
+            image_pick_button,
+            reset_button,
+            about_button,
+            exit_button,
+        }
+    }
+}
+
+impl MenuItems {
+    fn add_to_menu<T>(&self, menu: &T) where T: AppendableMenu {
+        menu.append(&self.visible_button);
+        menu.append(&self.adjust_button);
+        menu.append(&self.image_pick_button);
+        menu.append(&self.reset_button);
+        menu.append(&self.about_button);
+        menu.append(&self.exit_button);
+    }
+}
+
+trait AppendableMenu {
+    fn append(&self, item: &dyn MenuItemExt);
+}
+
+impl AppendableMenu for Menu {
+    fn append(&self, item: &dyn MenuItemExt) {
+        self.append(item);
+    }
+}
+
+impl AppendableMenu for Submenu {
+    fn append(&self, item: &dyn MenuItemExt) {
+        self.append(item);
+    }
+}
+
+enum DialogRequest {
+    PngPath,
+    Info(String),
+    Warning(String),
+    Terminate,
 }
