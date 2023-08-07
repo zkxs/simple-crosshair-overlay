@@ -20,8 +20,36 @@ jobs:
       - uses: actions/checkout@v3
       - uses: EmbarkStudios/cargo-deny-action@v1
   test:
-    name: Test
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - runs-on: windows-latest
+            triple: x86_64-pc-windows-msvc
+            build-name: Windows
+            artifact-name: windows
+            suffix: .exe
+            path-separator: '\'
+          - runs-on: ubuntu-latest
+            triple: x86_64-unknown-linux-gnu
+            build-name: Linux
+            artifact-name: linux
+            suffix: ''
+            path-separator: '/'
+          - runs-on: macos-latest
+            triple: x86_64-apple-darwin
+            build-name: macOS x86
+            artifact-name: mac-x86
+            suffix: ''
+            path-separator: '/'
+          - runs-on: macos-latest
+            triple: aarch64-apple-darwin
+            build-name: macOS ARM
+            artifact-name: mac-arm
+            suffix: ''
+            path-separator: '/'
+      fail-fast: false
+    name: Test ${{ matrix.target.build-name }}
+    runs-on: ${{ matrix.target.runs-on }}
     steps:
       - name: git checkout
         uses: actions/checkout@v3
@@ -40,11 +68,13 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
+          target: ${{ matrix.target.triple }}
       - name: Install extra Linux dependencies
+        if: matrix.target.runs-on == 'ubuntu-latest'
         run: | # gdk-sys needs {libgtk-3-dev}.
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev
       - name: Check
-        run: cargo check
+        run: cargo check --target ${{ matrix.target.triple }}
       - name: Test
-        run: cargo test
+        run: cargo test --target ${{ matrix.target.triple }}
