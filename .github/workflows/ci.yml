@@ -26,28 +26,28 @@ jobs:
           - runs-on: windows-latest
             triple: x86_64-pc-windows-msvc
             build-name: Windows
-            artifact-name: windows
+            artifact-suffix: ''
             suffix: .exe
             path-separator: '\'
             runner-can-execute: true
 #          - runs-on: ubuntu-latest
 #            triple: x86_64-unknown-linux-gnu
 #            build-name: Linux
-#            artifact-name: linux
+#            artifact-suffix: -linux
 #            suffix: ''
 #            path-separator: '/'
 #            runner-can-execute: true
           - runs-on: macos-latest
             triple: x86_64-apple-darwin
             build-name: macOS x86
-            artifact-name: mac-x86
+            artifact-suffix: -mac-x86
             suffix: ''
             path-separator: '/'
             runner-can-execute: true
           - runs-on: macos-latest
             triple: aarch64-apple-darwin
             build-name: macOS ARM
-            artifact-name: mac-arm
+            artifact-suffix: -mac-arm
             suffix: ''
             path-separator: '/'
             runner-can-execute: false

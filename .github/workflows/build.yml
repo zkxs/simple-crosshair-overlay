@@ -26,28 +26,28 @@ jobs:
           - runs-on: windows-latest
             triple: x86_64-pc-windows-msvc
             build-name: Windows
-            artifact-name: windows
+            artifact-suffix: ''
             suffix: .exe
             path-separator: '\'
             runner-can-execute: true
 #          - runs-on: ubuntu-latest
 #            triple: x86_64-unknown-linux-gnu
 #            build-name: Linux
-#            artifact-name: linux
+#            artifact-suffix: -linux
 #            suffix: ''
 #            path-separator: '/'
 #            runner-can-execute: true
           - runs-on: macos-latest
             triple: x86_64-apple-darwin
             build-name: macOS x86
-            artifact-name: mac-x86
+            artifact-suffix: -mac-x86
             suffix: ''
             path-separator: '/'
             runner-can-execute: true
           - runs-on: macos-latest
             triple: aarch64-apple-darwin
             build-name: macOS ARM
-            artifact-name: mac-arm
+            artifact-suffix: -mac-arm
             suffix: ''
             path-separator: '/'
             runner-can-execute: false
@@ -94,14 +94,14 @@ jobs:
       - name: Rename artifact for release # action-gh-release is incapable of renaming files, so I have to do it manually
         if: startsWith(github.ref, 'refs/tags/') # only run for pushes to tags
         run: |
-          cp "./target/${{ matrix.target.triple }}/release/simple-crosshair-overlay${{ matrix.target.suffix }}" "${{ runner.temp }}/simple-crosshair-overlay-${{ matrix.target.artifact-name }}${{ matrix.target.suffix }}"
+          cp "./target/${{ matrix.target.triple }}/release/simple-crosshair-overlay${{ matrix.target.suffix }}" "${{ runner.temp }}/simple-crosshair-overlay${{ matrix.target.artifact-suffix }}${{ matrix.target.suffix }}"
           ls "${{ runner.temp }}"
-          file "${{ runner.temp }}${{ matrix.target.path-separator }}simple-crosshair-overlay-${{ matrix.target.artifact-name }}${{ matrix.target.suffix }}"
+          file "${{ runner.temp }}${{ matrix.target.path-separator }}simple-crosshair-overlay${{ matrix.target.artifact-suffix }}${{ matrix.target.suffix }}"
         shell: bash
       - name: Upload release artifact
         uses: softprops/action-gh-release@v0.1.14
         if: startsWith(github.ref, 'refs/tags/') # only run for pushes to tags
         with:
           draft: true
-          files: ${{ runner.temp }}${{ matrix.target.path-separator }}simple-crosshair-overlay-${{ matrix.target.artifact-name }}${{ matrix.target.suffix }}
+          files: ${{ runner.temp }}${{ matrix.target.path-separator }}simple-crosshair-overlay${{ matrix.target.artifact-suffix }}${{ matrix.target.suffix }}
           fail_on_unmatched_files: true
