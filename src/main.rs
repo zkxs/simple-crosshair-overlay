@@ -93,7 +93,7 @@ fn main() {
     #[cfg(target_os = "macos")] let menu_items = {
         // on mac all menu items must be in a submenu, so just make one with no name. Hope that doesn't cause problems...
         let submenu = tray_icon::menu::Submenu::new("", true);
-        tray_menu.append(&submenu);
+        tray_menu.append(&submenu).unwrap();
 
         let menu_items = MenuItems::default();
         menu_items.add_to_menu(&submenu);
