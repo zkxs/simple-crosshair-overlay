@@ -48,7 +48,8 @@ fn main() -> io::Result<()> {
     }
 
     // only generate Windows resource info on Windows.
-    if cfg!(target_os = "windows") {
+    #[cfg(target_os = "windows")]
+    {
         let icon_path = out_dir.join(APP_ICON_NAME);
         generate_file_if_not_cached(icon_path.as_path(), create_windows_app_icon_file)?;
 
