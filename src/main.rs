@@ -115,23 +115,27 @@ fn main() {
     );
 
     #[cfg(target_os = "linux")]
-    std::thread::Builder::new()
-        .name("gtk-main".to_string())
-        .spawn(|| {
-            gtk::init().unwrap();
+    {
+        let tray_menu = Box::new(tray_menu);
 
-            // linux: icon must be created on same thread as gtk main loop,
-            // and therefore can NOT be on the same thread as the event loop despite the tray-icon docs saying otherwise.
-            // This means it's impossible to have it in scope for dropping later from the event loop
-            TrayIconBuilder::new()
-                .with_menu(Box::new(tray_menu))
-                .with_tooltip(ICON_TOOLTIP)
-                .with_icon(get_icon())
-                .build()
-                .unwrap();
+        std::thread::Builder::new()
+            .name("gtk-main".to_string())
+            .spawn(|| {
+                gtk::init().unwrap();
 
-            gtk::main();
-        }).unwrap();
+                // linux: icon must be created on same thread as gtk main loop,
+                // and therefore can NOT be on the same thread as the event loop despite the tray-icon docs saying otherwise.
+                // This means it's impossible to have it in scope for dropping later from the event loop
+                TrayIconBuilder::new()
+                    .with_menu(tray_menu)
+                    .with_tooltip(ICON_TOOLTIP)
+                    .with_icon(get_icon())
+                    .build()
+                    .unwrap();
+
+                gtk::main();
+            }).unwrap();
+    }
 
     let (file_path_sender, file_path_receiver) = mpsc::channel();
     let dialog_request_receiver = DIALOG_REQUEST_CHANNEL.1.lock().unwrap().take().unwrap();
