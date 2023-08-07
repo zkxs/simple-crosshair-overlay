@@ -29,24 +29,28 @@ jobs:
             artifact-name: windows
             suffix: .exe
             path-separator: '\'
+            runner-can-execute: true
           - runs-on: ubuntu-latest
             triple: x86_64-unknown-linux-gnu
             build-name: Linux
             artifact-name: linux
             suffix: ''
             path-separator: '/'
+            runner-can-execute: true
           - runs-on: macos-latest
             triple: x86_64-apple-darwin
             build-name: macOS x86
             artifact-name: mac-x86
             suffix: ''
             path-separator: '/'
+            runner-can-execute: true
           - runs-on: macos-latest
             triple: aarch64-apple-darwin
             build-name: macOS ARM
             artifact-name: mac-arm
             suffix: ''
             path-separator: '/'
+            runner-can-execute: false
       fail-fast: false
     name: Test ${{ matrix.target.build-name }}
     runs-on: ${{ matrix.target.runs-on }}
@@ -77,4 +81,5 @@ jobs:
       - name: Check
         run: cargo check --target ${{ matrix.target.triple }}
       - name: Test
+        if: matrix.target.runner-can-execute
         run: cargo test --target ${{ matrix.target.triple }}
