@@ -20,7 +20,6 @@ use tray_icon::menu::{CheckMenuItem, MenuEvent, MenuItem};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::event::Event;
 use winit::event_loop::EventLoop;
-use winit::platform::windows::WindowBuilderExtWindows;
 use winit::window::{Window, WindowBuilder, WindowLevel};
 
 use crate::hotkey::HotkeyManager;
@@ -450,9 +449,12 @@ fn init_gui(event_loop: &EventLoop<()>, settings: &Settings) -> Window {
         .with_position(PhysicalPosition::new(0, 0)) // can't determine monitor size until the window is created, so just use some dummy values
         .with_inner_size(PhysicalSize::new(1, 1)); // this might flicker so make it very tiny
 
-    #[cfg(target_os = "windows")] let window_builder = window_builder
-        .with_drag_and_drop(false)
-        .with_skip_taskbar(true);
+    #[cfg(target_os = "windows")] let window_builder = {
+        use winit::platform::windows::WindowBuilderExtWindows;
+        window_builder
+            .with_drag_and_drop(false)
+            .with_skip_taskbar(true)
+    };
 
     let window = window_builder.build(event_loop)
         .unwrap();
