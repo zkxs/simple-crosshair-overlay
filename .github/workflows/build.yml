@@ -73,6 +73,7 @@ jobs:
         with:
           profile: minimal
           toolchain: nightly
+          components: rust-src
           target: ${{ matrix.target.triple }}
       - name: Install extra Linux dependencies
         if: matrix.target.runs-on == 'ubuntu-latest'
