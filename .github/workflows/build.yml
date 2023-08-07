@@ -6,6 +6,7 @@ name: Build
 on:
   push:
     paths:
+      - .github/workflows/build.yml
       - Cargo.lock
       - Cargo.toml
       - deny.toml
