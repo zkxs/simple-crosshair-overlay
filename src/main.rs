@@ -7,7 +7,7 @@
 use std::io;
 use std::num::NonZeroU32;
 use std::path::PathBuf;
-use std::sync::mpsc;
+use std::sync::{Arc, mpsc};
 use std::sync::Mutex;
 
 use device_query::{DeviceQuery, DeviceState};
@@ -100,8 +100,8 @@ fn main() {
     };
 
     #[cfg(target_os = "linux")] let menu_items = {
-        let menu_items = MenuItems::default();
-        let menu_items_mutex = Mutex::new(menu_items.clone());
+        let menu_items = Arc::new(MenuItems::default());
+        let menu_items_clone = menu_items.clone();
 
         std::thread::Builder::new()
             .name("gtk-main".to_string())
@@ -109,9 +109,7 @@ fn main() {
                 gtk::init().unwrap();
 
                 let tray_menu = Menu::new();
-
-                let menu_items_guard = menu_items_mutex.lock().unwrap();
-                menu_items_guard.add_to_menu(&tray_menu);
+                menu_items_clone.add_to_menu(&tray_menu);
 
                 // linux: icon must be created on same thread as gtk main loop,
                 // and therefore can NOT be on the same thread as the event loop despite the tray-icon docs saying otherwise.
