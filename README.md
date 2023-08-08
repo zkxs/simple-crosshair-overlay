@@ -15,19 +15,23 @@ A simple native crosshair overlay without unnecessary bloat. Free and open-sourc
 
 ## Features
 
-- Works on any application that's *not* fullscreen exclusive. You **must** use windowed or borderless-windowed mode on your game. This was an intentional design choice, as rendering into a fullscreen-exclusive game is *not* anticheat-compatible.
+- Works on any application that's not fullscreen exclusive. You **must** use windowed or borderless-windowed mode on your game. This was an intentional design choice, as rendering into a fullscreen-exclusive game is not anticheat-compatible.
 - Performant: the overlay is only redrawn when you change the crosshair.
 - Minimal UI: managed via a tray icon and hotkeys.
 - Comes with a simple default crosshair that can be scaled to your preference
 - Can use custom PNG images as crosshairs. Alpha is not only supported: it's mandatory. Because why would you want an opaque rectangle as your crosshair?
 - Crosshair settings are saved when you exit the application.
-- No sprawling installation. simple-crosshair-overlay.exe itself and a single config file placed in `%appdata%\simple-crosshair-overlay` are all the files this program needs.
+- No sprawling installation. The only file this program uses is small configuration saved in `%appdata%\simple-crosshair-overlay`.
 
 ## Installation
 
 1. Download simple-crosshair-overlay.exe from the [latest release](https://github.com/zkxs/simple-crosshair-overlay/releases/latest), and save it to a location of your choice
 2. Run simple-crosshair-overlay.exe
 3. Optionally, if you want a start menu shortcut you can make one yourself! Simply right-click simple-crosshair-overlay.exe and select "Pin to Start". This will automatically create a shortcut in `%appdata%\Microsoft\Windows\Start Menu\Programs`. 
+
+Binaries are also provided for MacOS, although they are untested. If you're interested in helping test see [issue #3](https://github.com/zkxs/simple-crosshair-overlay/issues/3).
+
+Linux is presently unsupported. See [issue #6](https://github.com/zkxs/simple-crosshair-overlay/issues/6).
 
 ## Usage
 
@@ -41,29 +45,22 @@ Use the tray icon to:
 
 In **Adjust Mode**, use the arrow keys to move the crosshair and PageUp/PageDown to increase/decrease the crosshair scale.
 
-### Horrible Config Editing
+### Manual Config Editing
 
-**Color** of the default crosshair cannot currently be changed in-application. However, it can be manually altered by
-editing the `color` setting in `%appdata%\simple-crosshair-overlay\config\config.toml` to an ARGB hexadecimal value.
-So for example `B2FF0000` for red with a bit of transparency, or `FF00FF00` for fully opaque green.
+The config file is saved to `%appdata%\simple-crosshair-overlay\config\config.toml`. The following settings currently
+cannot be edited in-application and can only be changed via manual config file editing.
 
-**Hotkeys** cannot currently be changed in-application. However, they can be manually altered by changing configs in the
-`key_bindings` section of config.toml using the Keycode values defined in [keycode.rs](src/hotkey/keycode.rs).
+**Color** of the default crosshair can be manually edited by  changing the `color` setting in `config.toml` to an ARGB
+hexadecimal value. So for example `B2FF0000` for red with a bit of transparency, or `FF00FF00` for fully opaque green.
+Note that this has no effect on custom PNG crosshairs.
 
-## To-Do
+**Hotkeys** can be manually edited by changing configs in the `key_bindings` section of `config.toml` using the Keycode
+values defined in [keycode.rs](src/hotkey/keycode.rs).
 
-Maybe one day I'll get around to these features:
-
-- Support changing color of built-in crosshair _without_ manual config editing
-- Customizable hotkeys _without_ manual config editing
-- Verify if it works on MacOS/Linux
-
-<!-- TODO: publish crate
 ## Installing from Source
 
 1. [Install Rust](https://www.rust-lang.org/tools/install)
 2. `cargo install simple-crosshair-overlay`
--->
 
 ## Building from Source
 
@@ -75,6 +72,6 @@ Maybe one day I'll get around to these features:
 
 ## License
 
-Copyright 2022-2023 [Michael Ripley](https://github.com/zkxs).
+Copyright 2023 [Michael Ripley](https://github.com/zkxs).
 
 Simple Crosshair Overlay is provided under the [GPL-3.0 license](LICENSE).
