@@ -371,10 +371,13 @@ fn on_window_position_change(window: &Window, settings: &Settings) {
     window.set_outer_position(compute_window_coordinates(window, settings));
 }
 
-/// Compute the correct coordinates of the top-left of the window in order to center the crosshair in the primary monitor
+/// Compute the correct coordinates of the top-left of the window in order to center the crosshair in the selected monitor
 fn compute_window_coordinates(window: &Window, settings: &Settings) -> PhysicalPosition<i32> {
+    // fall back to primary monitor if the desired monitor index is invalid
     let monitor = window.available_monitors().nth(settings.monitor_index)
         .unwrap_or_else(|| window.primary_monitor().unwrap());
+
+    // grab a bunch of coordinates/sizes and convert them to i32s, as we have some signed math to do
     let PhysicalPosition { x: monitor_x, y: monitor_y } = monitor.position();
     let PhysicalSize { width: monitor_width, height: monitor_height } = monitor.size();
     let monitor_width = i32::try_from(monitor_width).unwrap();
@@ -382,18 +385,28 @@ fn compute_window_coordinates(window: &Window, settings: &Settings) -> PhysicalP
     let PhysicalSize { width: window_width, height: window_height } = settings.size();
     let window_width = i32::try_from(window_width).unwrap();
     let window_height = i32::try_from(window_height).unwrap();
+
+    // calculate the coordinates of the center of the monitor, rounding down
     let (monitor_center_x, monitor_center_y) = rectangle_center(monitor_x, monitor_y, monitor_width, monitor_height);
+
+    // adjust by half our window size, as we want the coordinates at which to place the top-left corner of the window
     let window_x = monitor_center_x - (window_width / 2) + settings.persisted.window_dx;
     let window_y = monitor_center_y - (window_height / 2) + settings.persisted.window_dy;
+
     PhysicalPosition::new(window_x, window_y)
 }
 
 /// calculate the coordinates of the center of a rectangle.
 /// `x` and `y` are the coordinates of the top left corner.
 /// `width` and `height` are the dimensions of the rectangle.
+/// Rounding is done towards -Infinity.
+/// I haven't thought about what happens if `width` or `height` are negative, so you'd better keep them positive.
 #[inline(always)]
 fn rectangle_center(x: i32, y: i32, width: i32, height: i32) -> (i32, i32) {
-    (x + width.div_floor_placeholder(2), y + height.div_floor_placeholder(2))
+    (
+        x + width.div_floor_placeholder(2),
+        y + height.div_floor_placeholder(2)
+    )
 }
 
 /// draws a crosshair image, or a simple red crosshair if no image is set
