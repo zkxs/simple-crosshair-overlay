@@ -278,39 +278,37 @@ fn update_key_buffer_values(key_combination: &[Keycode], bit: &mut Bitmask, look
 }
 
 fn move_ramp(frames: u32) -> u32 {
-    if frames < 10 {
-        // 0-9
+    if frames < 2 {
         1
-    } else if frames < 20 {
-        // 10-19
+    } else if frames < 10 {
+        0
+    } else if frames < 25 {
+        1
+    } else if frames < 35 {
         4
-    } else if frames < 40 {
-        // 20-39
+    } else if frames < 55 {
         16
-    } else if frames < 60 {
-        // 40-59
+    } else if frames < 75 {
         32
     } else {
-        // 60+
         64
     }
 }
 
 fn scale_ramp(frames: u32) -> u32 {
-    if frames < 10 {
-        // 0-9
+    if frames < 2 {
         1
-    } else if frames < 20 {
-        // 10-19
+    } else if frames < 10 {
+        0
+    } else if frames < 25 {
+        1
+    } else if frames < 35 {
         4
-    } else if frames < 40 {
-        // 20-39
+    } else if frames < 55 {
         16
-    } else if frames < 60 {
-        // 40-59
+    } else if frames < 75 {
         32
     } else {
-        // 60+
         64
     }
 }
