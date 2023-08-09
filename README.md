@@ -43,7 +43,11 @@ Use the tray icon to:
 - reset crosshair to default settings
 - safely exit the application and save your settings
 
-In **Adjust Mode**, use the arrow keys to move the crosshair and PageUp/PageDown to increase/decrease the crosshair scale.
+In **Adjust Mode**:
+
+- Arrow keys to move the crosshair
+- PageUp/PageDown to increase/decrease the crosshair scale
+- Ctrl+M to cycle through your monitors
 
 ### Manual Config Editing
 

@@ -20,10 +20,16 @@ const DEFAULT_OFFSET_X: i32 = 0;
 const DEFAULT_OFFSET_Y: i32 = 0;
 const DEFAULT_SIZE: u32 = 4;
 const DEFAULT_FPS: u32 = 60;
+const DEFAULT_MONITOR_INDEX: usize = 0;
+const DEFAULT_MONITOR: u32 = (DEFAULT_MONITOR_INDEX as u32) + 1;
 
 // needed for serde, as it can't read constants directly
 const fn default_fps() -> u32 {
     DEFAULT_FPS
+}
+
+const fn default_monitor() -> u32 {
+    DEFAULT_MONITOR
 }
 
 /// The actual persisted settings struct
@@ -40,6 +46,8 @@ pub struct PersistedSettings {
     image_path: Option<PathBuf>,
     #[serde(default)]
     pub key_bindings: KeyBindings,
+    #[serde(default = "default_monitor")]
+    monitor: u32,
 }
 
 impl PersistedSettings {
@@ -64,11 +72,14 @@ impl PersistedSettings {
 
         let tick_interval = fps_to_tick_interval(self.fps);
 
+        let monitor_index = usize::try_from(self.monitor.checked_sub(1).unwrap()).unwrap();
+
         Settings {
             persisted: self,
             color,
             image,
             tick_interval,
+            monitor_index,
         }
     }
 }
@@ -84,6 +95,7 @@ impl Default for PersistedSettings {
             fps: DEFAULT_FPS,
             image_path: None,
             key_bindings: KeyBindings::default(),
+            monitor: DEFAULT_MONITOR,
         }
     }
 }
@@ -94,6 +106,7 @@ pub struct Settings {
     pub color: u32,
     pub image: Option<Image>,
     pub tick_interval: Duration,
+    pub monitor_index: usize,
 }
 
 impl Settings {
@@ -149,6 +162,7 @@ impl Default for Settings {
             color,
             image: None,
             tick_interval: fps_to_tick_interval(DEFAULT_FPS),
+            monitor_index: DEFAULT_MONITOR_INDEX,
         }
     }
 }

@@ -22,6 +22,11 @@ const KEYCODE_LENGTH: usize = 96;
 type Bitmask = u32;
 type KeyBinding = Vec<Keycode>;
 
+// serde defaults for new keybinds
+fn default_cycle_monitor_keybind() -> KeyBinding {
+    KeyBindings::default().cycle_monitor
+}
+
 /// format user can specify keybindings with
 #[derive(Serialize, Deserialize)]
 pub struct KeyBindings {
@@ -29,6 +34,8 @@ pub struct KeyBindings {
     down: KeyBinding,
     left: KeyBinding,
     right: KeyBinding,
+    #[serde(default = "default_cycle_monitor_keybind")]
+    cycle_monitor: KeyBinding,
     scale_increase: KeyBinding,
     scale_decrease: KeyBinding,
     toggle_hidden: KeyBinding,
@@ -42,6 +49,7 @@ impl Default for KeyBindings {
             down: vec![Keycode::Down],
             left: vec![Keycode::Left],
             right: vec![Keycode::Right],
+            cycle_monitor: vec![Keycode::LControl, Keycode::M],
             scale_increase: vec![Keycode::PageUp],
             scale_decrease: vec![Keycode::PageDown],
             toggle_hidden: vec![Keycode::LControl, Keycode::H],
@@ -56,6 +64,7 @@ struct KeyBuffer {
     down_mask: Bitmask,
     left_mask: Bitmask,
     right_mask: Bitmask,
+    cycle_monitor_mask: Bitmask,
     scale_increase_mask: Bitmask,
     scale_decrease_mask: Bitmask,
     toggle_hidden_mask: Bitmask,
@@ -73,6 +82,7 @@ impl KeyBuffer {
         let down_mask = update_key_buffer_values(&key_bindings.down, &mut bit, &mut lookup_table)?;
         let left_mask = update_key_buffer_values(&key_bindings.left, &mut bit, &mut lookup_table)?;
         let right_mask = update_key_buffer_values(&key_bindings.right, &mut bit, &mut lookup_table)?;
+        let cycle_monitor_mask = update_key_buffer_values(&key_bindings.cycle_monitor, &mut bit, &mut lookup_table)?;
         let scale_increase_mask = update_key_buffer_values(&key_bindings.scale_increase, &mut bit, &mut lookup_table)?;
         let scale_decrease_mask = update_key_buffer_values(&key_bindings.scale_decrease, &mut bit, &mut lookup_table)?;
         let toggle_hidden_mask = update_key_buffer_values(&key_bindings.toggle_hidden, &mut bit, &mut lookup_table)?;
@@ -87,6 +97,7 @@ impl KeyBuffer {
                 down_mask,
                 left_mask,
                 right_mask,
+                cycle_monitor_mask,
                 scale_increase_mask,
                 scale_decrease_mask,
                 toggle_hidden_mask,
@@ -122,6 +133,10 @@ impl KeyBuffer {
 
     fn right(&self, buf: Bitmask) -> bool {
         buf & self.right_mask == self.right_mask
+    }
+
+    fn cycle_monitor(&self, buf: Bitmask) -> bool {
+        buf & self.cycle_monitor_mask == self.cycle_monitor_mask
     }
 
     fn scale_increase(&self, buf: Bitmask) -> bool {
@@ -201,6 +216,11 @@ impl HotkeyManager {
     pub fn toggle_adjust(&self) -> bool {
         let key_buffer: &KeyBuffer = &self.key_buffer;
         !key_buffer.toggle_adjust(self.previous_state) && key_buffer.toggle_adjust(self.state)
+    }
+
+    pub fn cycle_monitor(&self) -> bool {
+        let key_buffer: &KeyBuffer = &self.key_buffer;
+        !key_buffer.cycle_monitor(self.previous_state) && key_buffer.cycle_monitor(self.state)
     }
 
     pub fn move_up(&self) -> u32 {

@@ -25,6 +25,7 @@ use winit::window::{Window, WindowBuilder, WindowLevel};
 
 use crate::hotkey::HotkeyManager;
 use crate::settings::Settings;
+use crate::util::numeric::DivFloor;
 
 mod settings;
 mod custom_serializer;
@@ -253,6 +254,10 @@ fn main() {
                         window_position_dirty = true;
                     }
 
+                    if hotkey_manager.cycle_monitor() {
+                        settings.monitor_index = (settings.monitor_index + 1) % window.available_monitors().count();
+                        window_scale_dirty = true;
+                    }
 
                     if settings.is_scalable() && hotkey_manager.scale_increase() != 0 {
                         settings.persisted.window_height += hotkey_manager.scale_increase();
@@ -370,19 +375,27 @@ fn on_window_position_change(window: &Window, settings: &Settings) {
 
 /// Compute the correct coordinates of the top-left of the window in order to center the crosshair in the primary monitor
 fn compute_window_coordinates(window: &Window, settings: &Settings) -> PhysicalPosition<i32> {
-    let monitor = window.primary_monitor().unwrap();
+    let monitor = window.available_monitors().nth(settings.monitor_index)
+        .unwrap_or_else(|| window.primary_monitor().unwrap());
     let PhysicalPosition { x: monitor_x, y: monitor_y } = monitor.position();
     let PhysicalSize { width: monitor_width, height: monitor_height } = monitor.size();
     let monitor_width = i32::try_from(monitor_width).unwrap();
     let monitor_height = i32::try_from(monitor_height).unwrap();
     let PhysicalSize { width: window_width, height: window_height } = settings.size();
-    let window_width = window_width as i32;
-    let window_height = window_height as i32;
-    let monitor_center_x = (monitor_width - monitor_x) / 2;
-    let monitor_center_y = (monitor_height - monitor_y) / 2;
+    let window_width = i32::try_from(window_width).unwrap();
+    let window_height = i32::try_from(window_height).unwrap();
+    let (monitor_center_x, monitor_center_y) = rectangle_center(monitor_x, monitor_y, monitor_width, monitor_height);
     let window_x = monitor_center_x - (window_width / 2) + settings.persisted.window_dx;
     let window_y = monitor_center_y - (window_height / 2) + settings.persisted.window_dy;
     PhysicalPosition::new(window_x, window_y)
+}
+
+/// calculate the coordinates of the center of a rectangle.
+/// `x` and `y` are the coordinates of the top left corner.
+/// `width` and `height` are the dimensions of the rectangle.
+#[inline(always)]
+fn rectangle_center(x: i32, y: i32, width: i32, height: i32) -> (i32, i32) {
+    (x + width.div_floor_placeholder(2), y + height.div_floor_placeholder(2))
 }
 
 /// draws a crosshair image, or a simple red crosshair if no image is set
@@ -561,4 +574,45 @@ enum DialogRequest {
     Info(String),
     Warning(String),
     Terminate,
+}
+
+#[cfg(test)]
+mod test_rectangle_center {
+    use super::*;
+
+    #[test]
+    fn test_rectangle_center_0_corner() {
+        assert_eq!(rectangle_center(0, 0, 100, 100), (50, 50));
+    }
+
+    #[test]
+    fn test_rectangle_center_0_corner_odd_size() {
+        assert_eq!(rectangle_center(0, 0, 101, 101), (50, 50));
+    }
+
+    #[test]
+    fn test_rectangle_center_even_corner() {
+        assert_eq!(rectangle_center(2, 2, 96, 96), (50, 50));
+    }
+
+    #[test]
+    fn test_rectangle_center_even_corner_odd_size() {
+        assert_eq!(rectangle_center(2, 2, 97, 97), (50, 50));
+    }
+
+    #[test]
+    fn test_rectangle_center_negative_corner() {
+        assert_eq!(rectangle_center(-2, -2, 104, 104), (50, 50));
+    }
+
+    #[test]
+    fn test_rectangle_center_negative_corner_odd_size() {
+        assert_eq!(rectangle_center(-2, -2, 105, 105), (50, 50));
+    }
+
+    #[test]
+    fn test_1080p_top_centered() {
+        // my actual 1080p monitor setup
+        assert_eq!(rectangle_center(397, -1080, 1920, 1080), (397 + 960, -1080 + 540));
+    }
 }
