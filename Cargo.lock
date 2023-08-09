@@ -1098,9 +1098,9 @@ dependencies = [
 
 [[package]]
 name = "muda"
-version = "0.7.3"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e375211006d809e35f8b1488b37d0716a474a6a1d8ecc268ec6d2756cf4fbb49"
+checksum = "47e33f46fb20f85553edb85e30a6a5231567f4103276ccdb5a2050613d253b1d"
 dependencies = [
  "cocoa 0.25.0",
  "crossbeam-channel",
@@ -1376,9 +1376,9 @@ checksum = "9b2a4787296e9989611394c33f193f676704af1686e70b8f8033ab5ba9a35a94"
 
 [[package]]
 name = "pin-project-lite"
-version = "0.2.11"
+version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c516611246607d0c04186886dbb3a754368ef82c79e9827a802c6d836dd111c"
+checksum = "12cc1b0bf1727a77a54b6654e7b5f1af8604923edc8b81885f8ec92f9e3f0a05"
 
 [[package]]
 name = "pin-utils"
@@ -1825,9 +1825,9 @@ dependencies = [
 
 [[package]]
 name = "tray-icon"
-version = "0.7.7"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62cfab965795a1d83dde8d38c00161edb80ea5a5c860cfb3a8e0d9dfc211860b"
+checksum = "e3b0e5bec13da15e62330e9bcf8b9fd42489b5acfe29ac8fec7ed659dbee21d9"
 dependencies = [
  "cocoa 0.25.0",
  "core-graphics 0.23.1",

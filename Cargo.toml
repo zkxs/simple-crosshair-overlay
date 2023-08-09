@@ -18,7 +18,7 @@ codegen-units = 1
 strip = true # note that this breaks cargo-bloat, and I don't know any fix aside from commenting out this line
 
 [dependencies]
-tray-icon = "0.7"
+tray-icon = "0.8"
 winit = "0.28"
 softbuffer = "0.3"
 serde = { version = "1", features = ["derive"] }
@@ -34,4 +34,4 @@ winres = "0.1"
 ico = "0.3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-gtk = "0.16" # must use this old version of gtk because it's what tray-icon 0.7 needs
+gtk = "0.16" # must use this old version of gtk because it's what tray-icon 0.8 needs
