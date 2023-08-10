@@ -9,11 +9,12 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
-use winit::dpi::PhysicalSize;
+use winit::dpi::{PhysicalPosition, PhysicalSize};
+use winit::window::Window;
 
-use crate::{CONFIG_PATH, show_warning};
+use crate::{CONFIG_PATH, debug_println, show_warning};
 use crate::hotkey::KeyBindings;
-use crate::util::image::{Image, load_png, premultiply_alpha};
+use crate::util::image::{Image, load_png, premultiply_alpha, rectangle_center};
 use crate::util::numeric::fps_to_tick_interval;
 
 const DEFAULT_OFFSET_X: i32 = 0;
@@ -81,6 +82,8 @@ impl PersistedSettings {
             image,
             tick_interval,
             monitor_index,
+            desired_window_position: PhysicalPosition::default(),
+            desired_window_size: PhysicalSize::default(),
         }
     }
 }
@@ -109,6 +112,8 @@ pub struct Settings {
     pub tick_interval: Duration,
     /// 0-indexed monitor to render the overlay to
     pub monitor_index: usize,
+    pub desired_window_position: PhysicalPosition<i32>,
+    pub desired_window_size: PhysicalSize<u32>,
 }
 
 impl Settings {
@@ -153,6 +158,60 @@ impl Settings {
         let serialized_config = toml::to_string(&self.persisted).expect("failed to serialize settings");
         fs::write(CONFIG_PATH.as_path(), serialized_config).map_err(|e| format!("{e:?}"))
     }
+
+    pub fn set_window_position(&mut self, window: &Window) {
+        let position = self.compute_window_coordinates(window);
+        self.desired_window_position = position;
+        window.set_outer_position(position);
+    }
+
+    fn reset_window_position(&self, window: &Window) {
+        window.set_outer_position(self.desired_window_position);
+    }
+
+    pub fn validate_window_position(&self, window: &Window, position: PhysicalPosition<i32>) {
+        if position != self.desired_window_position {
+            debug_println!("resetting window position");
+            self.reset_window_position(window);
+        }
+    }
+
+    pub fn set_window_size(&self, window: &Window) {
+        window.set_inner_size(self.size());
+    }
+
+    pub fn validate_window_size(&self, window: &Window, size: PhysicalSize<u32>) {
+        if size != self.size() {
+            debug_println!("resetting window size");
+            self.set_window_size(window);
+        }
+    }
+
+    /// Compute the correct coordinates of the top-left of the window in order to center the crosshair in the selected monitor
+    fn compute_window_coordinates(&self, window: &Window) -> PhysicalPosition<i32> {
+        // fall back to primary monitor if the desired monitor index is invalid
+        let monitor = window.available_monitors().nth(self.monitor_index)
+            .unwrap_or_else(|| window.primary_monitor().unwrap());
+
+        // grab a bunch of coordinates/sizes and convert them to i32s, as we have some signed math to do
+        let PhysicalPosition { x: monitor_x, y: monitor_y } = monitor.position();
+        let PhysicalSize { width: monitor_width, height: monitor_height } = monitor.size();
+        let monitor_width = i32::try_from(monitor_width).unwrap();
+        let monitor_height = i32::try_from(monitor_height).unwrap();
+        let PhysicalSize { width: window_width, height: window_height } = self.size();
+        let window_width = i32::try_from(window_width).unwrap();
+        let window_height = i32::try_from(window_height).unwrap();
+
+        // calculate the coordinates of the center of the monitor, rounding down
+        let (monitor_center_x, monitor_center_y) = rectangle_center(monitor_x, monitor_y, monitor_width, monitor_height);
+
+        // adjust by half our window size, as we want the coordinates at which to place the top-left corner of the window
+        let window_x = monitor_center_x - (window_width / 2) + self.persisted.window_dx;
+        let window_y = monitor_center_y - (window_height / 2) + self.persisted.window_dy;
+
+        debug_println!("placing window at {}, {}", window_x, window_y);
+        PhysicalPosition::new(window_x, window_y)
+    }
 }
 
 impl Default for Settings {
@@ -165,6 +224,8 @@ impl Default for Settings {
             image: None,
             tick_interval: fps_to_tick_interval(DEFAULT_FPS),
             monitor_index: DEFAULT_MONITOR_INDEX,
+            desired_window_position: PhysicalPosition::default(),
+            desired_window_size: PhysicalSize::default(),
         }
     }
 }

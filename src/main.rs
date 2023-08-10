@@ -17,13 +17,12 @@ use softbuffer::{Context, Surface};
 use tray_icon::{Icon as TrayIcon, menu::Menu, TrayIconBuilder};
 use tray_icon::menu::{CheckMenuItem, IsMenuItem, MenuEvent, MenuItem, Result as MenuResult, Submenu};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
-use winit::event::Event;
+use winit::event::{Event, WindowEvent};
 use winit::event_loop::EventLoop;
 use winit::window::{Window, WindowBuilder, WindowLevel};
 
 use crate::hotkey::HotkeyManager;
 use crate::settings::Settings;
-use crate::util::numeric::DivFloor;
 
 mod settings;
 mod custom_serializer;
@@ -201,7 +200,7 @@ fn main() {
     // It is highly illegal to use the context or surface after the window is dropped.
     // The context only gets used right here, so that's fine.
     // As of this writing, none of these get moved. Therefore they all get dropped one after the other at the end of main(), which is safe.
-    let window = init_window(&event_loop, &settings);
+    let window = init_window(&event_loop, &mut settings);
     let context = unsafe { Context::new(&window) }.unwrap();
     let mut surface = unsafe { Surface::new(&context, &window) }.unwrap();
 
@@ -217,10 +216,7 @@ fn main() {
             Event::RedrawRequested(_) => {
                 // failsafe to resize the window before a redraw if necessary
                 // ...and of course it's fucking necessary
-                if window.inner_size() != settings.size() {
-                    window.set_inner_size(settings.size());
-                }
-
+                settings.validate_window_size(&window, window.inner_size());
                 draw_window(&mut surface, &settings, force_redraw);
                 force_redraw = false;
             }
@@ -275,9 +271,9 @@ fn main() {
                     }
 
                     if window_scale_dirty {
-                        on_window_size_or_position_change(&window, &settings);
+                        on_window_size_or_position_change(&window, &mut settings);
                     } else if window_position_dirty {
-                        on_window_position_change(&window, &settings);
+                        on_window_position_change(&window, &mut settings);
                     }
                 } else if hotkey_manager.toggle_adjust() {
                     // adjust button is NOT checked
@@ -292,7 +288,22 @@ fn main() {
                     }
                 }
             }
-            _ => (),
+            Event::WindowEvent { event: WindowEvent::Moved(position), .. } => {
+                // incredibly, if the taskbar is at the top or left of the screen Windows will
+                // (un)helpfully shift the window over by the taskbar's size. I have no idea why
+                // this happens and it's terrible, but luckily Windows tells me it's done this so
+                // that I can immediately detect and undo it.
+                debug_println!("window position changed to {:?}", position);
+                settings.validate_window_position(&window, position);
+            }
+            Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
+                // See above nightmare scenario with the window position. I figure I might as well
+                // do the same thing for size just in case Windows also has some arcane, evil
+                // involuntary resizing behavior.
+                debug_println!("window size changed to {:?}", size);
+                settings.validate_window_size(&window, size);
+            }
+            _ => ()
         }
 
         if let Ok(path) = file_path_receiver.try_recv() {
@@ -302,7 +313,7 @@ fn main() {
                 match settings.load_png(path) {
                     Ok(()) => {
                         force_redraw = true;
-                        on_window_size_or_position_change(&window, &settings);
+                        on_window_size_or_position_change(&window, &mut settings);
                     }
                     Err(e) => show_warning(format!("Error loading PNG.\n\n{}", e))
                 }
@@ -336,7 +347,7 @@ fn main() {
                 id if id == menu_items.reset_button.id() => {
                     settings.reset();
                     force_redraw = true;
-                    on_window_size_or_position_change(&window, &settings);
+                    on_window_size_or_position_change(&window, &mut settings);
                 }
                 id if id == menu_items.image_pick_button.id() => {
                     menu_items.image_pick_button.set_enabled(false);
@@ -352,9 +363,9 @@ fn main() {
 }
 
 /// Handles both window size and position change side effects.
-fn on_window_size_or_position_change(window: &Window, settings: &Settings) {
-    window.set_inner_size(settings.size());
-    window.set_outer_position(compute_window_coordinates(window, settings));
+fn on_window_size_or_position_change(window: &Window, settings: &mut Settings) {
+    settings.set_window_size(window);
+    settings.set_window_position(window);
     window.request_redraw(); // needed in case the window size didn't change but the image was replaced
 
     /*
@@ -367,46 +378,8 @@ fn on_window_size_or_position_change(window: &Window, settings: &Settings) {
 }
 
 /// Slightly cheaper special case that can only handle window position changes. Do not use this if the window size may have changed.
-fn on_window_position_change(window: &Window, settings: &Settings) {
-    window.set_outer_position(compute_window_coordinates(window, settings));
-}
-
-/// Compute the correct coordinates of the top-left of the window in order to center the crosshair in the selected monitor
-fn compute_window_coordinates(window: &Window, settings: &Settings) -> PhysicalPosition<i32> {
-    // fall back to primary monitor if the desired monitor index is invalid
-    let monitor = window.available_monitors().nth(settings.monitor_index)
-        .unwrap_or_else(|| window.primary_monitor().unwrap());
-
-    // grab a bunch of coordinates/sizes and convert them to i32s, as we have some signed math to do
-    let PhysicalPosition { x: monitor_x, y: monitor_y } = monitor.position();
-    let PhysicalSize { width: monitor_width, height: monitor_height } = monitor.size();
-    let monitor_width = i32::try_from(monitor_width).unwrap();
-    let monitor_height = i32::try_from(monitor_height).unwrap();
-    let PhysicalSize { width: window_width, height: window_height } = settings.size();
-    let window_width = i32::try_from(window_width).unwrap();
-    let window_height = i32::try_from(window_height).unwrap();
-
-    // calculate the coordinates of the center of the monitor, rounding down
-    let (monitor_center_x, monitor_center_y) = rectangle_center(monitor_x, monitor_y, monitor_width, monitor_height);
-
-    // adjust by half our window size, as we want the coordinates at which to place the top-left corner of the window
-    let window_x = monitor_center_x - (window_width / 2) + settings.persisted.window_dx;
-    let window_y = monitor_center_y - (window_height / 2) + settings.persisted.window_dy;
-
-    PhysicalPosition::new(window_x, window_y)
-}
-
-/// calculate the coordinates of the center of a rectangle.
-/// `x` and `y` are the coordinates of the top left corner.
-/// `width` and `height` are the dimensions of the rectangle.
-/// Rounding is done towards -Infinity.
-/// I haven't thought about what happens if `width` or `height` are negative, so you'd better keep them positive.
-#[inline(always)]
-fn rectangle_center(x: i32, y: i32, width: i32, height: i32) -> (i32, i32) {
-    (
-        x + width.div_floor_placeholder(2),
-        y + height.div_floor_placeholder(2)
-    )
+fn on_window_position_change(window: &Window, settings: &mut Settings) {
+    settings.set_window_position(window);
 }
 
 /// Draws a crosshair image, or a simple red crosshair if no image is set. Normally this only
@@ -479,7 +452,7 @@ fn get_icon() -> TrayIcon {
 }
 
 /// Initialize the window. This gives a transparent, borderless window that's always on top and can be clicked through.
-fn init_window(event_loop: &EventLoop<()>, settings: &Settings) -> Window {
+fn init_window(event_loop: &EventLoop<()>, settings: &mut Settings) -> Window {
     let window_builder = WindowBuilder::new()
         .with_visible(false) // things get very buggy on Windows if you default the window to invisible...
         .with_transparent(true)
@@ -500,11 +473,11 @@ fn init_window(event_loop: &EventLoop<()>, settings: &Settings) -> Window {
         .unwrap();
 
     // contrary to all my expectations this call appears to work reliably
-    window.set_outer_position(compute_window_coordinates(&window, settings));
+    settings.set_window_position(&window);
 
     // this call is very fragile (read: shit) and sometimes simply doesn't do anything.
     // There's a fallback call up in the event loop that saves us when this fails.
-    window.set_inner_size(settings.size());
+    settings.set_window_size(&window);
 
     // once the window is ready, show it
     window.set_visible(true);
@@ -604,45 +577,4 @@ enum DialogRequest {
     Warning(String),
     /// Stop the dialog worker thread
     Terminate,
-}
-
-#[cfg(test)]
-mod test_rectangle_center {
-    use super::*;
-
-    #[test]
-    fn test_rectangle_center_0_corner() {
-        assert_eq!(rectangle_center(0, 0, 100, 100), (50, 50));
-    }
-
-    #[test]
-    fn test_rectangle_center_0_corner_odd_size() {
-        assert_eq!(rectangle_center(0, 0, 101, 101), (50, 50));
-    }
-
-    #[test]
-    fn test_rectangle_center_even_corner() {
-        assert_eq!(rectangle_center(2, 2, 96, 96), (50, 50));
-    }
-
-    #[test]
-    fn test_rectangle_center_even_corner_odd_size() {
-        assert_eq!(rectangle_center(2, 2, 97, 97), (50, 50));
-    }
-
-    #[test]
-    fn test_rectangle_center_negative_corner() {
-        assert_eq!(rectangle_center(-2, -2, 104, 104), (50, 50));
-    }
-
-    #[test]
-    fn test_rectangle_center_negative_corner_odd_size() {
-        assert_eq!(rectangle_center(-2, -2, 105, 105), (50, 50));
-    }
-
-    /// my actual 1080p monitor setup
-    #[test]
-    fn test_1080p_top_centered() {
-        assert_eq!(rectangle_center(397, -1080, 1920, 1080), (397 + 960, -1080 + 540));
-    }
 }

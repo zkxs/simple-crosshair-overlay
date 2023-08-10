@@ -10,7 +10,7 @@ use std::path::Path;
 
 use png::ColorType;
 
-use crate::util::numeric::DivCeil;
+use crate::util::numeric::{DivCeil, DivFloor};
 
 /// in-memory image representation
 pub struct Image {
@@ -63,7 +63,7 @@ fn rgba_to_argb(rgba_color: u32) -> u32 {
 /// Premultiply alpha if required by current platform. On this platform this performs the premultiplication.
 #[cfg(target_os = "windows")]
 pub fn premultiply_alpha(color: u32) -> u32 {
-    let [b, g,r, a] = color.to_le_bytes();
+    let [b, g, r, a] = color.to_le_bytes();
     u32::from_le_bytes(
         [
             premultiply_alpha_u8(b, a),
@@ -152,6 +152,19 @@ pub fn load_png(path: &Path) -> io::Result<Image> {
     Ok(image)
 }
 
+/// calculate the coordinates of the center of a rectangle.
+/// `x` and `y` are the coordinates of the top left corner.
+/// `width` and `height` are the dimensions of the rectangle.
+/// Rounding is done towards -Infinity.
+/// I haven't thought about what happens if `width` or `height` are negative, so you'd better keep them positive.
+#[inline(always)]
+pub fn rectangle_center(x: i32, y: i32, width: i32, height: i32) -> (i32, i32) {
+    (
+        x + width.div_floor_placeholder(2),
+        y + height.div_floor_placeholder(2)
+    )
+}
+
 #[cfg(test)]
 mod test_pixel_format {
     use super::*;
@@ -228,5 +241,46 @@ mod test_pixel_format {
                 assert_eq!(actual_result, precise_result, "mismatch for c={c} a={a}")
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test_rectangle_center {
+    use super::*;
+
+    #[test]
+    fn test_rectangle_center_0_corner() {
+        assert_eq!(rectangle_center(0, 0, 100, 100), (50, 50));
+    }
+
+    #[test]
+    fn test_rectangle_center_0_corner_odd_size() {
+        assert_eq!(rectangle_center(0, 0, 101, 101), (50, 50));
+    }
+
+    #[test]
+    fn test_rectangle_center_even_corner() {
+        assert_eq!(rectangle_center(2, 2, 96, 96), (50, 50));
+    }
+
+    #[test]
+    fn test_rectangle_center_even_corner_odd_size() {
+        assert_eq!(rectangle_center(2, 2, 97, 97), (50, 50));
+    }
+
+    #[test]
+    fn test_rectangle_center_negative_corner() {
+        assert_eq!(rectangle_center(-2, -2, 104, 104), (50, 50));
+    }
+
+    #[test]
+    fn test_rectangle_center_negative_corner_odd_size() {
+        assert_eq!(rectangle_center(-2, -2, 105, 105), (50, 50));
+    }
+
+    /// my actual 1080p monitor setup
+    #[test]
+    fn test_1080p_top_centered() {
+        assert_eq!(rectangle_center(397, -1080, 1920, 1080), (397 + 960, -1080 + 540));
     }
 }

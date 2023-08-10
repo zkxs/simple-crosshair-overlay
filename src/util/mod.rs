@@ -6,3 +6,4 @@
 
 pub mod numeric;
 pub mod image;
+pub mod macros;
