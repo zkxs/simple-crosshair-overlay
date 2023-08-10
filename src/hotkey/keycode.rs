@@ -7,6 +7,10 @@
 use device_query::Keycode as DeviceQueryKeycode;
 use serde::{Deserialize, Serialize};
 
+/// Our own Keycode type, which *should* be a 1:1 mapping with `device_query::Keycode`.
+/// You may be wondering why I don't just use `device_query::Keycode`. Well, I can't
+/// `#[derive(Serialize, Deserialize)]` for a type I don't own, so alas I had to make this
+/// incredibly verbose file to allow serde to handle the Keycode enum.
 #[derive(Serialize, Deserialize)]
 pub enum Keycode {
     Key0,

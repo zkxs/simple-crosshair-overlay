@@ -46,6 +46,7 @@ pub struct PersistedSettings {
     image_path: Option<PathBuf>,
     #[serde(default)]
     pub key_bindings: KeyBindings,
+    /// 1-indexed monitor to render the overlay to
     #[serde(default = "default_monitor")]
     monitor: u32,
 }
@@ -106,6 +107,7 @@ pub struct Settings {
     pub color: u32,
     pub image: Option<Image>,
     pub tick_interval: Duration,
+    /// 0-indexed monitor to render the overlay to
     pub monitor_index: usize,
 }
 

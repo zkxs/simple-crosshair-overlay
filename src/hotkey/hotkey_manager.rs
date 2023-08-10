@@ -75,8 +75,8 @@ struct KeyBuffer {
 
 impl KeyBuffer {
     fn new(key_bindings: &KeyBindings) -> Result<KeyBuffer, &'static str> {
+        // build the lookup table and compute each hotkeys bitmask combination
         let mut bit = 1;
-
         let mut lookup_table = [0; KEYCODE_LENGTH];
         let up_mask = update_key_buffer_values(&key_bindings.up, &mut bit, &mut lookup_table)?;
         let down_mask = update_key_buffer_values(&key_bindings.down, &mut bit, &mut lookup_table)?;
@@ -108,10 +108,14 @@ impl KeyBuffer {
         )
     }
 
+    /// Get the bitmask that corresponds to this specific key. This returns a mask with a single bit
+    /// set for keys used in any hotkey, and returns zero for keys not used in any hotkey.
+    #[inline(always)]
     fn keycode_to_mask(&self, keycode: &DeviceQueryKeycode) -> Bitmask {
         self.lookup_table[keycode_to_table_index(keycode)]
     }
 
+    /// Generate the bitmask that corresponds to the currently pressed key combination.
     fn update(&self, buf: &mut Bitmask, keys: &[DeviceQueryKeycode]) {
         *buf = 0;
         for keycode in keys {
@@ -119,48 +123,59 @@ impl KeyBuffer {
         }
     }
 
+    /// Check if the currently pressed keys contain the "up" key combination
     fn up(&self, buf: Bitmask) -> bool {
         buf & self.up_mask == self.up_mask
     }
 
+    /// Check if the currently pressed keys contain the "down" key combination
     fn down(&self, buf: Bitmask) -> bool {
         buf & self.down_mask == self.down_mask
     }
 
+    /// Check if the currently pressed keys contain the "left" key combination
     fn left(&self, buf: Bitmask) -> bool {
         buf & self.left_mask == self.left_mask
     }
 
+    /// Check if the currently pressed keys contain the "right" key combination
     fn right(&self, buf: Bitmask) -> bool {
         buf & self.right_mask == self.right_mask
     }
 
+    /// Check if the currently pressed keys contain the "cycle_monitor" key combination
     fn cycle_monitor(&self, buf: Bitmask) -> bool {
         buf & self.cycle_monitor_mask == self.cycle_monitor_mask
     }
 
+    /// Check if the currently pressed keys contain the "scale_increase" key combination
     fn scale_increase(&self, buf: Bitmask) -> bool {
         buf & self.scale_increase_mask == self.scale_increase_mask
     }
 
+    /// Check if the currently pressed keys contain the "scale_decrease" key combination
     fn scale_decrease(&self, buf: Bitmask) -> bool {
         buf & self.scale_decrease_mask == self.scale_decrease_mask
     }
 
+    /// Check if the currently pressed keys contain the "toggle_hidden" key combination
     fn toggle_hidden(&self, buf: Bitmask) -> bool {
         buf & self.toggle_hidden_mask == self.toggle_hidden_mask
     }
 
+    /// Check if the currently pressed keys contain the "toggle_adjust" key combination
     fn toggle_adjust(&self, buf: Bitmask) -> bool {
         buf & self.toggle_adjust_mask == self.toggle_adjust_mask
     }
 
-    //TODO: this is not strictly correct: if a movement keybind uses multiple keys it breaks
+    //TODO: this is not strictly correct: if a movement keybind uses multiple keys it breaks, as it will return `true` for partial binding presses
+    /// Check if the currently pressed keys contain any movement keys
     fn any_movement(&self, buf: Bitmask) -> bool {
         buf & self.any_movement_mask != 0
     }
 
-    //TODO: this is not strictly correct: if a scale keybind uses multiple keys it breaks
+    //TODO: this is not strictly correct: if a scale keybind uses multiple keys it breaks, as it will return `true` for partial binding presses
+    /// Check if the currently pressed keys contain any scaling keys
     fn any_scale(&self, buf: Bitmask) -> bool {
         buf & self.any_scale_mask != 0
     }
@@ -208,21 +223,25 @@ impl HotkeyManager {
         };
     }
 
+    /// check if "toggle_hidden" key combination was just pressed
     pub fn toggle_hidden(&self) -> bool {
         let key_buffer: &KeyBuffer = &self.key_buffer;
         !key_buffer.toggle_hidden(self.previous_state) && key_buffer.toggle_hidden(self.state)
     }
 
+    /// check if "toggle_adjust" key combination was just pressed
     pub fn toggle_adjust(&self) -> bool {
         let key_buffer: &KeyBuffer = &self.key_buffer;
         !key_buffer.toggle_adjust(self.previous_state) && key_buffer.toggle_adjust(self.state)
     }
 
+    /// check if "cycle_monitor" key combination was just pressed
     pub fn cycle_monitor(&self) -> bool {
         let key_buffer: &KeyBuffer = &self.key_buffer;
         !key_buffer.cycle_monitor(self.previous_state) && key_buffer.cycle_monitor(self.state)
     }
 
+    /// calculate the move up speed based on how long movement keys have been held
     pub fn move_up(&self) -> u32 {
         if self.key_buffer.up(self.state) {
             move_ramp(self.movement_key_held_frames)
@@ -231,6 +250,7 @@ impl HotkeyManager {
         }
     }
 
+    /// calculate the move down speed based on how long movement keys have been held
     pub fn move_down(&self) -> u32 {
         if self.key_buffer.down(self.state) {
             move_ramp(self.movement_key_held_frames)
@@ -239,6 +259,7 @@ impl HotkeyManager {
         }
     }
 
+    /// calculate the move left speed based on how long movement keys have been held
     pub fn move_left(&self) -> u32 {
         if self.key_buffer.left(self.state) {
             move_ramp(self.movement_key_held_frames)
@@ -247,6 +268,7 @@ impl HotkeyManager {
         }
     }
 
+    /// calculate the move right speed based on how long movement keys have been held
     pub fn move_right(&self) -> u32 {
         if self.key_buffer.right(self.state) {
             move_ramp(self.movement_key_held_frames)
@@ -255,6 +277,7 @@ impl HotkeyManager {
         }
     }
 
+    /// calculate the scale increase speed based on how long scaling keys have been held
     pub fn scale_increase(&self) -> u32 {
         if self.key_buffer.scale_increase(self.state) {
             scale_ramp(self.scale_key_held_frames)
@@ -263,6 +286,7 @@ impl HotkeyManager {
         }
     }
 
+    /// calculate the scale decrease speed based on how long scaling keys have been held
     pub fn scale_decrease(&self) -> u32 {
         if self.key_buffer.scale_decrease(self.state) {
             scale_ramp(self.scale_key_held_frames)
@@ -278,6 +302,16 @@ impl Default for HotkeyManager {
     }
 }
 
+/// - `key_combination`: a set of keys to use for a specific hotkey action
+/// - `bit`: a bitmask with a single bit set which is used to represent a single key. For example,
+///   Ctrl might end up as 0b1. This bit is shifted for each distinct key we use.
+/// - `lookup_table`: a lookup table where each item is a key. A value of zero indicates no hotkey
+///   uses this key. A nonzero value indicates at least one hotkey uses this key.
+///
+/// This function is called for each hotkey you want to register, and it returns bitmask
+/// representing which keys must be pressed for that hotkey. Each key used as part of the hotkey
+/// system is assigned a unique bit in this masking scheme. This means if a u32 is used as the
+/// bitmask type then only 32 distinct keys may be used across all hotkeys.
 fn update_key_buffer_values(key_combination: &[Keycode], bit: &mut Bitmask, lookup_table: &mut [Bitmask; KEYCODE_LENGTH]) -> Result<Bitmask, &'static str> {
     let mut mask: Bitmask = 0;
     for keycode in key_combination {
@@ -297,6 +331,7 @@ fn update_key_buffer_values(key_combination: &[Keycode], bit: &mut Bitmask, look
     Ok(mask)
 }
 
+// TODO: this should probably be fps-aware
 fn move_ramp(frames: u32) -> u32 {
     if frames < 2 {
         1
@@ -315,6 +350,7 @@ fn move_ramp(frames: u32) -> u32 {
     }
 }
 
+// TODO: this should probably be fps-aware
 fn scale_ramp(frames: u32) -> u32 {
     if frames < 2 {
         1

@@ -85,15 +85,15 @@ impl DivFloor for i32 {
 mod test_div_rounding {
     use super::*;
 
+    /// this is obvious, but I included it for completeness with the following test
     #[test]
     fn positive_div_rounds_down() {
-        // this is obvious, but I included it for completeness with the following test
         assert_eq!(101 / 2, 50);
     }
 
+    /// rust integer division always rounds towards zero, this test is just to document that because we actually care about rounding towards -Infinity for some pixel math
     #[test]
     fn negative_div_rounds_up() {
-        // rust integer division always rounds towards zero, this test is just to document that because we actually care about rounding towards -Infinity for some pixel math
         assert_eq!(-101 / 2, -50);
     }
 

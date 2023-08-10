@@ -201,7 +201,7 @@ fn main() {
     // It is highly illegal to use the context or surface after the window is dropped.
     // The context only gets used right here, so that's fine.
     // As of this writing, none of these get moved. Therefore they all get dropped one after the other at the end of main(), which is safe.
-    let window = init_gui(&event_loop, &settings);
+    let window = init_window(&event_loop, &settings);
     let context = unsafe { Context::new(&window) }.unwrap();
     let mut surface = unsafe { Surface::new(&context, &window) }.unwrap();
 
@@ -409,7 +409,9 @@ fn rectangle_center(x: i32, y: i32, width: i32, height: i32) -> (i32, i32) {
     )
 }
 
-/// draws a crosshair image, or a simple red crosshair if no image is set
+/// Draws a crosshair image, or a simple red crosshair if no image is set. Normally this only
+/// redraws the buffer if it's uninitialized, but redraw can be forced by setting the `force`
+/// parameter to `true`.
 fn draw_window(surface: &mut Surface, settings: &Settings, force: bool) {
     let PhysicalSize { width: window_width, height: window_height } = settings.size();
     surface.resize(
@@ -419,7 +421,7 @@ fn draw_window(surface: &mut Surface, settings: &Settings, force: bool) {
 
     let mut buffer = surface.buffer_mut().unwrap();
 
-    if force || buffer.age() == 0 {
+    if force || buffer.age() == 0 { // only redraw if the buffer is uninitialized OR redraw is being forced
         if let Some(image) = &settings.image {
             // draw our image
             buffer.copy_from_slice(image.data.as_slice());
@@ -435,6 +437,7 @@ fn draw_window(surface: &mut Surface, settings: &Settings, force: bool) {
                 // edge case where there simply aren't enough pixels to draw a crosshair, so we just fall back to a dot
                 buffer.fill(settings.color);
             } else {
+                // draw a simple crosshair. Think a `+` shape.
                 buffer.fill(FULL_ALPHA);
 
                 // horizontal line
@@ -469,11 +472,14 @@ fn draw_window(surface: &mut Surface, settings: &Settings, force: bool) {
     buffer.present().unwrap();
 }
 
+/// Load a tray icon graphic.
 fn get_icon() -> TrayIcon {
+    // simply grab the static byte array that's embedded in the application, which was generated in build.rs
     TrayIcon::from_rgba(include_bytes!(env!("TRAY_ICON_PATH")).to_vec(), build_constants::TRAY_ICON_DIMENSION, build_constants::TRAY_ICON_DIMENSION).unwrap()
 }
 
-fn init_gui(event_loop: &EventLoop<()>, settings: &Settings) -> Window {
+/// Initialize the window. This gives a transparent, borderless window that's always on top and can be clicked through.
+fn init_window(event_loop: &EventLoop<()>, settings: &Settings) -> Window {
     let window_builder = WindowBuilder::new()
         .with_visible(false) // things get very buggy on Windows if you default the window to invisible...
         .with_transparent(true)
@@ -511,18 +517,22 @@ fn init_gui(event_loop: &EventLoop<()>, settings: &Settings) -> Window {
     window
 }
 
+/// show a native popup with an info icon + sound
 pub fn show_info(text: String) {
     let _ = DIALOG_REQUEST_SENDER.with(|sender| sender.send(DialogRequest::Info(text)));
 }
 
+/// show a native popup with a warning icon + sound
 pub fn show_warning(text: String) {
     let _ = DIALOG_REQUEST_SENDER.with(|sender| sender.send(DialogRequest::Warning(text)));
 }
 
+/// signal the dialog worker thread to shut down once it's done processing its queue
 pub fn terminate_dialog_worker() {
     let _ = DIALOG_REQUEST_SENDER.with(|sender| sender.send(DialogRequest::Terminate));
 }
 
+/// Contains the menu items in our tray menu
 #[derive(Clone)]
 struct MenuItems {
     visible_button: CheckMenuItem,
@@ -554,6 +564,7 @@ impl Default for MenuItems {
 }
 
 impl MenuItems {
+    /// Append all the menu items into the provided `menu`.
     fn add_to_menu<T>(&self, menu: &T) where T: AppendableMenu {
         menu.append(&self.visible_button).unwrap();
         menu.append(&self.adjust_button).unwrap();
@@ -564,7 +575,10 @@ impl MenuItems {
     }
 }
 
+/// Surprisingly tray-icon doesn't provide a trait for the Menu.append() behavior several structs
+/// have, so I have to build it myself for the structs I'm actually using.
 trait AppendableMenu {
+    /// Add a menu item to the end of this menu.
     fn append(&self, item: &dyn IsMenuItem) -> MenuResult<()>;
 }
 
@@ -580,10 +594,15 @@ impl AppendableMenu for Submenu {
     }
 }
 
+/// The different types of requests the dialog worker thread can process
 enum DialogRequest {
+    /// Show a file browser for the user to select a PNG image
     PngPath,
+    /// Show an informational popup with the provided text
     Info(String),
+    /// Show a warning popup with the provided text
     Warning(String),
+    /// Stop the dialog worker thread
     Terminate,
 }
 
@@ -621,9 +640,9 @@ mod test_rectangle_center {
         assert_eq!(rectangle_center(-2, -2, 105, 105), (50, 50));
     }
 
+    /// my actual 1080p monitor setup
     #[test]
     fn test_1080p_top_centered() {
-        // my actual 1080p monitor setup
         assert_eq!(rectangle_center(397, -1080, 1920, 1080), (397 + 960, -1080 + 540));
     }
 }
