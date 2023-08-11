@@ -535,7 +535,7 @@ fn init_window(event_loop: &EventLoop<()>, settings: &mut Settings) -> Window {
     // Windows particularly hates if you unset cursor_hittest while the window is hidden
     window.set_cursor_hittest(false).unwrap();
     window.set_window_level(WindowLevel::AlwaysOnTop);
-    window.set_cursor_icon(CursorIcon::Crosshair);
+    window.set_cursor_icon(CursorIcon::Crosshair); // Yo Dawg, I herd you like crosshairs so I put a crosshair in your crosshair so you can aim while you aim.
 
     window
 }
