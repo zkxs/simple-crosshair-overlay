@@ -29,6 +29,7 @@ mod settings;
 mod custom_serializer;
 mod hotkey;
 mod util;
+mod platform;
 
 static ICON_TOOLTIP: &str = "Simple Crosshair Overlay";
 
@@ -209,6 +210,8 @@ fn main() {
     let mut force_redraw = false; // if set to true, the next redraw will be forced even for known buffer contents
     let mut last_mouse_position = PhysicalPosition::default();
 
+    let mut last_focused_window: Option<platform::WindowHandle> = None;
+
     // pass control to the event loop
     event_loop.run(move |event, _, control_flow| {
         control_flow.set_wait();
@@ -284,7 +287,7 @@ fn main() {
                 }
 
                 if hotkey_manager.toggle_color_picker() {
-                    handle_color_pick(settings.toggle_pick_color(), &window);
+                    handle_color_pick(settings.toggle_pick_color(), &window, &mut last_focused_window);
                     window_scale_dirty = true;
                 }
             }
@@ -316,7 +319,7 @@ fn main() {
                 let height = height as usize;
 
                 settings.set_color(image::hue_alpha_color_from_coordinates(x, y, width, height));
-                handle_color_pick(false, &window);
+                handle_color_pick(false, &window, &mut last_focused_window);
                 window_scale_dirty = true;
             }
             _ => ()
@@ -368,7 +371,7 @@ fn main() {
                 id if id == menu_items.color_pick_button.id() => {
                     let pick_color = menu_items.color_pick_button.is_checked();
                     settings.set_pick_color(pick_color);
-                    handle_color_pick(pick_color, &window);
+                    handle_color_pick(pick_color, &window, &mut last_focused_window);
                     window_scale_dirty = true;
                 }
                 id if id == menu_items.image_pick_button.id() => {
@@ -390,12 +393,19 @@ fn main() {
     });
 }
 
-fn handle_color_pick(color_pick: bool, window: &Window) {
+/// Updates the window state after entering or exiting color picker mode
+fn handle_color_pick(color_pick: bool, window: &Window, last_focused_window: &mut Option<platform::WindowHandle>) {
     if color_pick {
+        // back up the last-focused window right before we focus ourself
+        *last_focused_window = platform::get_foreground_window();
         window.focus_window();
         window.set_cursor_hittest(true).unwrap();
         window.set_cursor_grab(CursorGrabMode::Confined).unwrap();
     } else {
+        if let Some(last_focused_window) = *last_focused_window {
+            let _success = platform::set_foreground_window(last_focused_window);
+            debug_println!("focus previous window {last_focused_window:?} {_success}");
+        }
         window.set_cursor_hittest(false).unwrap();
         window.set_cursor_grab(CursorGrabMode::None).unwrap();
     }
@@ -509,7 +519,8 @@ fn init_window(event_loop: &EventLoop<()>, settings: &mut Settings) -> Window {
         .with_resizable(false)
         .with_title("Simple Crosshair Overlay")
         .with_position(PhysicalPosition::new(0, 0)) // can't determine monitor size until the window is created, so just use some dummy values
-        .with_inner_size(PhysicalSize::new(1, 1)); // this might flicker so make it very tiny
+        .with_inner_size(PhysicalSize::new(1, 1)) // this might flicker so make it very tiny
+        .with_active(false);
 
     #[cfg(target_os = "windows")] let window_builder = {
         use winit::platform::windows::WindowBuilderExtWindows;

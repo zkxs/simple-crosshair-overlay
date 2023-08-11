@@ -1606,6 +1606,7 @@ dependencies = [
  "softbuffer",
  "toml 0.7.6",
  "tray-icon",
+ "winapi",
  "winit",
  "winres",
 ]
