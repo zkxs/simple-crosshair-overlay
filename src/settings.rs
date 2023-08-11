@@ -23,6 +23,7 @@ const DEFAULT_SIZE: u32 = 4;
 const DEFAULT_FPS: u32 = 60;
 const DEFAULT_MONITOR_INDEX: usize = 0;
 const DEFAULT_MONITOR: u32 = (DEFAULT_MONITOR_INDEX as u32) + 1;
+const COLOR_PICKER_SIZE: u32 = 256;
 
 // needed for serde, as it can't read constants directly
 const fn default_fps() -> u32 {
@@ -109,7 +110,7 @@ impl Default for PersistedSettings {
 pub struct Settings {
     pub persisted: PersistedSettings,
     pub color: u32,
-    image: Option<Image>,
+    image: Option<Box<Image>>,
     pub tick_interval: Duration,
     /// 0-indexed monitor to render the overlay to
     pub monitor_index: usize,
@@ -129,34 +130,41 @@ impl Settings {
                 PhysicalSize::new(self.persisted.window_width, self.persisted.window_height)
             }
             RenderMode::ColorPicker => {
-                PhysicalSize::new(256, 256)
+                PhysicalSize::new(COLOR_PICKER_SIZE, COLOR_PICKER_SIZE)
             }
         }
     }
 
     pub fn image(&self) -> Option<&Image> {
-        self.image.as_ref()
+        self.image.as_ref().map(|b| b.as_ref())
     }
 
-    pub fn toggle_pick_color(&mut self) {
-        self.render_mode = if self.render_mode == RenderMode::ColorPicker {
-            RenderMode::from(&self.image)
+    /// Toggle color picker mode on or off. Returns `true` if color picker mode is now enabled, `false` otherwise.
+    pub fn toggle_pick_color(&mut self) -> bool {
+        let (render_mode, enabled) = if self.render_mode == RenderMode::ColorPicker {
+            (RenderMode::from(&self.image), false)
         } else {
-            RenderMode::ColorPicker
-        }
-    }
-    fn start_pick_color(&mut self) {
-        self.render_mode = RenderMode::ColorPicker;
+            (RenderMode::ColorPicker, true)
+        };
+        self.render_mode = render_mode;
+        enabled
     }
 
-    fn cancel_pick_color(&mut self) {
-        self.render_mode = RenderMode::from(&self.image);
+    pub fn set_pick_color(&mut self, pick_color: bool) {
+        self.render_mode = if pick_color {
+            RenderMode::ColorPicker
+        } else {
+            RenderMode::from(&self.image)
+        }
     }
 
     /// Set the color of the generated crosshair. The provided `color` must not have premultiplied alpha (yet)
     pub fn set_color(&mut self, color: u32) {
+        debug_println!("set color to {color:08X}");
         self.persisted.color = color;
         self.color = image::premultiply_alpha(color);
+        self.image = None; // unload image
+        self.persisted.image_path = None;
         self.render_mode = RenderMode::Crosshair;
     }
 
@@ -274,8 +282,8 @@ pub enum RenderMode {
     ColorPicker,
 }
 
-impl From<&Option<Image>> for RenderMode {
-    fn from(value: &Option<Image>) -> Self {
+impl<T> From<&Option<T>> for RenderMode where T: AsRef<Image> {
+    fn from(value: &Option<T>) -> Self {
         if value.is_some() {
             RenderMode::Image
         } else {

@@ -24,9 +24,73 @@ pub struct Image {
 
 /// calculate an ARGB color from picked coordinates from a color picker
 /// this color does NOT have premultiplied alpha
-pub fn color_from_coordinates(x: usize, y: usize, width: usize, height: usize) -> u32 {
-    //TODO: implement
-    0xFFFFFFFF
+pub fn hue_value_color_from_coordinates(x: usize, y: usize, width: usize, height: usize) -> u32 {
+    const EXPECTED_SIZE: usize = 256;
+    debug_assert_eq!(width, EXPECTED_SIZE);
+    debug_assert_eq!(height, EXPECTED_SIZE);
+
+    hue_value_to_argb(x as u8, 255 - (y as u8))
+}
+
+/// calculate an ARGB color from picked coordinates from a color picker
+/// this color does NOT have premultiplied alpha
+pub fn hue_alpha_color_from_coordinates(x: usize, y: usize, width: usize, height: usize) -> u32 {
+    const EXPECTED_SIZE: usize = 256;
+    debug_assert_eq!(width, EXPECTED_SIZE);
+    debug_assert_eq!(height, EXPECTED_SIZE);
+
+    hue_alpha_to_argb(x as u8, 255 - (y as u8))
+}
+
+/// see https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae
+/// this is a HSV -> RGB conversion, except S is always set to 100%, which simplifies things
+fn hue_value_to_argb(hue: u8, value: u8) -> u32 {
+    const MAX_COLOR: u8 = 255;
+    // we need the ceiling of each of the 5 boundaries between the 6 sections
+    const SECTION_1: u8 = 43; // 256/6*1 = 42.667
+    const SECTION_2: u8 = 86; // 256/6*2 = 85.333
+    const SECTION_3: u8 = 128; // 256/6*3 = 128.000
+    const SECTION_4: u8 = 171; // 256/6*4 = 170.667
+    const SECTION_5: u8 = 214; // 256/6*5 = 213.333
+
+    // convert the hue into a nice sawtooth line going from 0->255 in each of the 6 sections
+    let raw_hue = hue.wrapping_mul(6);
+
+    let [r, g, b] = match hue {
+        hue if hue < SECTION_1 => [value, multiply_color_channels_u8(raw_hue, value), 0],
+        hue if hue < SECTION_2 => [multiply_color_channels_u8(MAX_COLOR - raw_hue, value), value, 0],
+        hue if hue < SECTION_3 => [0, value, multiply_color_channels_u8(raw_hue, value)],
+        hue if hue < SECTION_4 => [0, multiply_color_channels_u8(MAX_COLOR - raw_hue, value), value],
+        hue if hue < SECTION_5 => [multiply_color_channels_u8(raw_hue, value), 0, value],
+        _ => [value, 0, multiply_color_channels_u8(MAX_COLOR - raw_hue, value)],
+    };
+
+    u32::from_le_bytes([b, g, r, MAX_COLOR])
+}
+
+/// this is a HSV -> RGB conversion, except S and V are always set to 100%, which simplifies things
+fn hue_alpha_to_argb(hue: u8, alpha: u8) -> u32 {
+    const MAX_COLOR: u8 = 255;
+    // we need the ceiling of each of the 5 boundaries between the 6 sections
+    const SECTION_1: u8 = 43; // 256/6*1 = 42.667
+    const SECTION_2: u8 = 86; // 256/6*2 = 85.333
+    const SECTION_3: u8 = 128; // 256/6*3 = 128.000
+    const SECTION_4: u8 = 171; // 256/6*4 = 170.667
+    const SECTION_5: u8 = 214; // 256/6*5 = 213.333
+
+    // convert the hue into a nice sawtooth line going from 0->255 in each of the 6 sections
+    let raw_hue = hue.wrapping_mul(6);
+
+    let [r, g, b] = match hue {
+        hue if hue < SECTION_1 => [MAX_COLOR, raw_hue, 0],
+        hue if hue < SECTION_2 => [MAX_COLOR - raw_hue, MAX_COLOR, 0],
+        hue if hue < SECTION_3 => [0, MAX_COLOR - raw_hue, raw_hue],
+        hue if hue < SECTION_4 => [0, MAX_COLOR - raw_hue, MAX_COLOR],
+        hue if hue < SECTION_5 => [raw_hue, 0, MAX_COLOR],
+        _ => [MAX_COLOR, 0, MAX_COLOR - raw_hue],
+    };
+
+    u32::from_le_bytes([b, g, r, alpha])
 }
 
 /// Convert BE RGBA to LE ARGB, premultiplying alpha where required by the target platform.
@@ -46,9 +110,9 @@ fn rgba_to_argb(rgba_color: u32) -> u32 {
     // We want to pack the data back into ARGB. Provided in LE order that's BGRA.
     u32::from_le_bytes(
         [
-            premultiply_alpha_u8(b, a),
-            premultiply_alpha_u8(g, a),
-            premultiply_alpha_u8(r, a),
+            multiply_color_channels_u8(b, a),
+            multiply_color_channels_u8(g, a),
+            multiply_color_channels_u8(r, a),
             a
         ]
     )
@@ -73,9 +137,9 @@ pub fn premultiply_alpha(color: u32) -> u32 {
     let [b, g, r, a] = color.to_le_bytes();
     u32::from_le_bytes(
         [
-            premultiply_alpha_u8(b, a),
-            premultiply_alpha_u8(g, a),
-            premultiply_alpha_u8(r, a),
+            multiply_color_channels_u8(b, a),
+            multiply_color_channels_u8(g, a),
+            multiply_color_channels_u8(r, a),
             a
         ]
     )
@@ -87,9 +151,7 @@ pub fn premultiply_alpha(color: u32) -> u32 {
     color
 }
 
-/// premultiply alpha for a single argb color.
-///
-/// This just `color * alpha / 255`.
+/// calculates `a * b / 255`
 ///
 /// Note that this cannot be done with u8 precision alone, an intermediate step in the math can be
 /// up to 255 * 255 == 65025 inclusive. Example code on how to do this conversion casts to floats
@@ -103,15 +165,15 @@ pub fn premultiply_alpha(color: u32) -> u32 {
 ///
 /// Finally, we can round to nearest int by simply adding 255 / 2 ~= 127 to the dividend
 #[inline(always)]
-fn premultiply_alpha_u8(color: u8, alpha: u8) -> u8 {
+fn multiply_color_channels_u8(a: u8, b: u8) -> u8 {
     const MAX_COLOR: u16 = 255;
     const HALF_COLOR: u16 = 127;
 
-    ((color as u16 * alpha as u16 + HALF_COLOR) / MAX_COLOR) as u8
+    ((a as u16 * b as u16 + HALF_COLOR) / MAX_COLOR) as u8
 }
 
 /// load a png file into an in-memory image
-pub fn load_png(path: &Path) -> io::Result<Image> {
+pub fn load_png(path: &Path) -> io::Result<Box<Image>> {
     let file = File::open(path)?;
     let decoder = png::Decoder::new(file);
     let mut reader = decoder.read_info()?;
@@ -156,7 +218,7 @@ pub fn load_png(path: &Path) -> io::Result<Image> {
         data: buf_as_u32,
     };
 
-    Ok(image)
+    Ok(Box::new(image))
 }
 
 /// calculate the coordinates of the center of a rectangle.
@@ -210,25 +272,25 @@ mod test_pixel_format {
     /// This should be a no-op.
     #[test]
     fn test_premultiply_alpha_noop() {
-        assert_eq!(premultiply_alpha_u8(255, 255), 255);
-        assert_eq!(premultiply_alpha_u8(127, 255), 127);
-        assert_eq!(premultiply_alpha_u8(0, 255), 0);
+        assert_eq!(multiply_color_channels_u8(255, 255), 255);
+        assert_eq!(multiply_color_channels_u8(127, 255), 127);
+        assert_eq!(multiply_color_channels_u8(0, 255), 0);
     }
 
     /// This should half the value of each color.
     #[test]
     fn test_premultiply_alpha_half() {
-        assert_eq!(premultiply_alpha_u8(255, 127), 127);
-        assert_eq!(premultiply_alpha_u8(127, 127), 63);
-        assert_eq!(premultiply_alpha_u8(0, 127), 0);
+        assert_eq!(multiply_color_channels_u8(255, 127), 127);
+        assert_eq!(multiply_color_channels_u8(127, 127), 63);
+        assert_eq!(multiply_color_channels_u8(0, 127), 0);
     }
 
     /// This should zero all the color data.
     #[test]
     fn test_premultiply_alpha_zero() {
-        assert_eq!(premultiply_alpha_u8(255, 0), 0);
-        assert_eq!(premultiply_alpha_u8(127, 0), 0);
-        assert_eq!(premultiply_alpha_u8(0, 0), 0);
+        assert_eq!(multiply_color_channels_u8(255, 0), 0);
+        assert_eq!(multiply_color_channels_u8(127, 0), 0);
+        assert_eq!(multiply_color_channels_u8(0, 0), 0);
     }
 
     /// alpha premultiply implemented with f64 precision and rounding to nearest int
@@ -244,7 +306,7 @@ mod test_pixel_format {
         for c in 0..=255 {
             for a in [0, 1, 127, 128, 254, 255] {
                 let precise_result = premultiply_alpha_precise_u8(c, a);
-                let actual_result = premultiply_alpha_u8(c, a);
+                let actual_result = multiply_color_channels_u8(c, a);
                 assert_eq!(actual_result, precise_result, "mismatch for c={c} a={a}")
             }
         }

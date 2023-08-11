@@ -17,9 +17,9 @@ use softbuffer::{Context, Surface};
 use tray_icon::{Icon as TrayIcon, menu::Menu, TrayIconBuilder};
 use tray_icon::menu::{CheckMenuItem, IsMenuItem, MenuEvent, MenuItem, Result as MenuResult, Submenu};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
-use winit::event::{Event, WindowEvent};
+use winit::event::{ElementState, Event, MouseButton, WindowEvent};
 use winit::event_loop::EventLoop;
-use winit::window::{Window, WindowBuilder, WindowLevel};
+use winit::window::{CursorGrabMode, CursorIcon, Window, WindowBuilder, WindowLevel};
 
 use crate::hotkey::HotkeyManager;
 use crate::settings::{RenderMode, Settings};
@@ -57,26 +57,25 @@ mod build_constants {
 }
 
 fn main() {
-    let mut settings = Box::new(
-        match Settings::load() {
-            Ok(settings) => settings,
-            Err(e) if e.kind() == io::ErrorKind::NotFound => Settings::default(), // generate new settings file when it doesn't exist
-            Err(e) => {
-                show_warning(format!("Error loading settings file \"{}\". Resetting to default settings.\n\n{}", CONFIG_PATH.display(), e));
-                Settings::default()
-            }
+    // settings has a decent quantity of data in it, but it never really gets moved so we can just leave it on the stack
+    // the image buffer is internally boxed so don't worry about that
+    let mut settings = match Settings::load() {
+        Ok(settings) => settings,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Settings::default(), // generate new settings file when it doesn't exist
+        Err(e) => {
+            show_warning(format!("Error loading settings file \"{}\". Resetting to default settings.\n\n{}", CONFIG_PATH.display(), e));
+            Settings::default()
         }
-    );
+    };
 
-    let mut hotkey_manager = Box::new(
-        match HotkeyManager::new(&settings.persisted.key_bindings) {
-            Ok(hotkey_manager) => hotkey_manager,
-            Err(e) => {
-                show_warning(format!("{e}\n\nUsing default hotkeys."));
-                HotkeyManager::default()
-            }
+    // HotkeyManager has a decent quantity of data in it, but again it never really gets moved so we can just leave it on the stack
+    let mut hotkey_manager = match HotkeyManager::new(&settings.persisted.key_bindings) {
+        Ok(hotkey_manager) => hotkey_manager,
+        Err(e) => {
+            show_warning(format!("{e}\n\nUsing default hotkeys."));
+            HotkeyManager::default()
         }
-    );
+    };
 
     // on non-linux we need this in scope
     #[cfg(not(target_os = "linux"))] let tray_menu = Menu::new();
@@ -208,10 +207,14 @@ fn main() {
     // remember some application state that's NOT part of our saved config
     let mut window_visible = true;
     let mut force_redraw = false; // if set to true, the next redraw will be forced even for known buffer contents
+    let mut last_mouse_position = PhysicalPosition::default();
 
     // pass control to the event loop
     event_loop.run(move |event, _, control_flow| {
         control_flow.set_wait();
+
+        let mut window_position_dirty = false;
+        let mut window_scale_dirty = false;
 
         match event {
             Event::RedrawRequested(_) => {
@@ -224,11 +227,8 @@ fn main() {
             Event::UserEvent(_) => {
                 let keys = device_state.get_keys();
                 hotkey_manager.process_keys(&keys);
-                let mut window_position_dirty = false;
-                let mut window_scale_dirty = false;
 
                 if menu_items.adjust_button.is_checked() {
-
                     if hotkey_manager.move_up() != 0 {
                         settings.persisted.window_dy -= hotkey_manager.move_up() as i32;
                         window_position_dirty = true;
@@ -284,14 +284,8 @@ fn main() {
                 }
 
                 if hotkey_manager.toggle_color_picker() {
-                    settings.toggle_pick_color();
+                    handle_color_pick(settings.toggle_pick_color(), &window);
                     window_scale_dirty = true;
-                }
-
-                if window_scale_dirty {
-                    on_window_size_or_position_change(&window, &mut settings);
-                } else if window_position_dirty {
-                    on_window_position_change(&window, &mut settings);
                 }
             }
             Event::WindowEvent { event: WindowEvent::Moved(position), .. } => {
@@ -309,6 +303,22 @@ fn main() {
                 debug_println!("window size changed to {:?}", size);
                 settings.validate_window_size(&window, size);
             }
+            Event::WindowEvent { event: WindowEvent::CursorMoved { position, .. }, .. } => {
+                last_mouse_position = position;
+            }
+            Event::WindowEvent { event: WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, .. }, .. } => {
+                let PhysicalPosition { x, y } = last_mouse_position;
+                let x = x as usize;
+                let y = y as usize;
+
+                let PhysicalSize { width, height } = settings.size();
+                let width = width as usize;
+                let height = height as usize;
+
+                settings.set_color(image::hue_alpha_color_from_coordinates(x, y, width, height));
+                handle_color_pick(false, &window);
+                window_scale_dirty = true;
+            }
             _ => ()
         }
 
@@ -319,7 +329,7 @@ fn main() {
                 match settings.load_png(path) {
                     Ok(()) => {
                         force_redraw = true;
-                        on_window_size_or_position_change(&window, &mut settings);
+                        window_scale_dirty = true;
                     }
                     Err(e) => show_warning(format!("Error loading PNG.\n\n{}", e))
                 }
@@ -353,7 +363,13 @@ fn main() {
                 id if id == menu_items.reset_button.id() => {
                     settings.reset();
                     force_redraw = true;
-                    on_window_size_or_position_change(&window, &mut settings);
+                    window_scale_dirty = true;
+                }
+                id if id == menu_items.color_pick_button.id() => {
+                    let pick_color = menu_items.color_pick_button.is_checked();
+                    settings.set_pick_color(pick_color);
+                    handle_color_pick(pick_color, &window);
+                    window_scale_dirty = true;
                 }
                 id if id == menu_items.image_pick_button.id() => {
                     menu_items.image_pick_button.set_enabled(false);
@@ -365,7 +381,24 @@ fn main() {
                 _ => (),
             }
         }
+
+        if window_scale_dirty {
+            on_window_size_or_position_change(&window, &mut settings);
+        } else if window_position_dirty {
+            on_window_position_change(&window, &mut settings);
+        }
     });
+}
+
+fn handle_color_pick(color_pick: bool, window: &Window) {
+    if color_pick {
+        window.focus_window();
+        window.set_cursor_hittest(true).unwrap();
+        window.set_cursor_grab(CursorGrabMode::Confined).unwrap();
+    } else {
+        window.set_cursor_hittest(false).unwrap();
+        window.set_cursor_grab(CursorGrabMode::None).unwrap();
+    }
 }
 
 /// Handles both window size and position change side effects.
@@ -449,9 +482,9 @@ fn draw_window(surface: &mut Surface, settings: &Settings, force: bool) {
                 }
             }
             RenderMode::ColorPicker => {
-                for y in 0 .. height {
-                    for x in 0 .. width {
-                        buffer[y * height + x] = image::color_from_coordinates(x, y, width, height);
+                for y in 0..height {
+                    for x in 0..width {
+                        buffer[y * height + x] = image::hue_value_color_from_coordinates(x, y, width, height);
                     }
                 }
             }
@@ -502,6 +535,7 @@ fn init_window(event_loop: &EventLoop<()>, settings: &mut Settings) -> Window {
     // Windows particularly hates if you unset cursor_hittest while the window is hidden
     window.set_cursor_hittest(false).unwrap();
     window.set_window_level(WindowLevel::AlwaysOnTop);
+    window.set_cursor_icon(CursorIcon::Crosshair);
 
     window
 }
@@ -526,6 +560,7 @@ pub fn terminate_dialog_worker() {
 struct MenuItems {
     visible_button: CheckMenuItem,
     adjust_button: CheckMenuItem,
+    color_pick_button: CheckMenuItem,
     image_pick_button: MenuItem,
     reset_button: MenuItem,
     about_button: MenuItem,
@@ -536,6 +571,7 @@ impl Default for MenuItems {
     fn default() -> Self {
         let visible_button = CheckMenuItem::new("Visible", true, true, None);
         let adjust_button = CheckMenuItem::new("Adjust", true, false, None);
+        let color_pick_button = CheckMenuItem::new("Pick Color", true, false, None);
         let image_pick_button = MenuItem::new("Load Image", true, None);
         let reset_button = MenuItem::new("Reset Overlay", true, None);
         let about_button = MenuItem::new("About", true, None);
@@ -544,6 +580,7 @@ impl Default for MenuItems {
         MenuItems {
             visible_button,
             adjust_button,
+            color_pick_button,
             image_pick_button,
             reset_button,
             about_button,
@@ -557,6 +594,7 @@ impl MenuItems {
     fn add_to_menu<T>(&self, menu: &T) where T: AppendableMenu {
         menu.append(&self.visible_button).unwrap();
         menu.append(&self.adjust_button).unwrap();
+        menu.append(&self.color_pick_button).unwrap();
         menu.append(&self.image_pick_button).unwrap();
         menu.append(&self.reset_button).unwrap();
         menu.append(&self.about_button).unwrap();
