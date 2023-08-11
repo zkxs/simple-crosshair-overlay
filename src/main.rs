@@ -287,7 +287,9 @@ fn main() {
                 }
 
                 if hotkey_manager.toggle_color_picker() {
-                    handle_color_pick(settings.toggle_pick_color(), &window, &mut last_focused_window);
+                    let color_pick = settings.toggle_pick_color();
+                    menu_items.color_pick_button.set_checked(color_pick);
+                    handle_color_pick(color_pick, &window, &mut last_focused_window, true);
                     window_scale_dirty = true;
                 }
             }
@@ -319,7 +321,8 @@ fn main() {
                 let height = height as usize;
 
                 settings.set_color(image::hue_alpha_color_from_coordinates(x, y, width, height));
-                handle_color_pick(false, &window, &mut last_focused_window);
+                menu_items.color_pick_button.set_checked(false);
+                handle_color_pick(false, &window, &mut last_focused_window, false);
                 window_scale_dirty = true;
             }
             _ => ()
@@ -371,7 +374,7 @@ fn main() {
                 id if id == menu_items.color_pick_button.id() => {
                     let pick_color = menu_items.color_pick_button.is_checked();
                     settings.set_pick_color(pick_color);
-                    handle_color_pick(pick_color, &window, &mut last_focused_window);
+                    handle_color_pick(pick_color, &window, &mut last_focused_window, false);
                     window_scale_dirty = true;
                 }
                 id if id == menu_items.image_pick_button.id() => {
@@ -394,20 +397,27 @@ fn main() {
 }
 
 /// Updates the window state after entering or exiting color picker mode
-fn handle_color_pick(color_pick: bool, window: &Window, last_focused_window: &mut Option<platform::WindowHandle>) {
+///
+/// If `save_focused` is `true`, this will make a best-effort to restore the previously focused window next time we exit color pick mode.
+fn handle_color_pick(color_pick: bool, window: &Window, last_focused_window: &mut Option<platform::WindowHandle>, save_focused: bool) {
     if color_pick {
-        // back up the last-focused window right before we focus ourself
-        *last_focused_window = platform::get_foreground_window();
-        window.focus_window();
+        *last_focused_window = if save_focused {
+            // back up the last-focused window right before we focus ourself
+            platform::get_foreground_window()
+        } else {
+            // make sure we don't have some weird old window handle saved if we shouldn't be saving focus
+            None
+        };
         window.set_cursor_hittest(true).unwrap();
-        window.set_cursor_grab(CursorGrabMode::Confined).unwrap();
+        window.focus_window();
+        window.set_cursor_grab(CursorGrabMode::Confined).unwrap(); // if we do this after the window is focused, it'll move the cursor to the window for us.
     } else {
+        window.set_cursor_grab(CursorGrabMode::None).unwrap();
+        window.set_cursor_hittest(false).unwrap();
         if let Some(last_focused_window) = *last_focused_window {
             let _success = platform::set_foreground_window(last_focused_window);
             debug_println!("focus previous window {last_focused_window:?} {_success}");
         }
-        window.set_cursor_hittest(false).unwrap();
-        window.set_cursor_grab(CursorGrabMode::None).unwrap();
     }
 }
 
