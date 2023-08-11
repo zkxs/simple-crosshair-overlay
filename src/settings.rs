@@ -19,7 +19,7 @@ use crate::util::numeric::fps_to_tick_interval;
 
 const DEFAULT_OFFSET_X: i32 = 0;
 const DEFAULT_OFFSET_Y: i32 = 0;
-const DEFAULT_SIZE: u32 = 4;
+const DEFAULT_SIZE: u32 = 16;
 const DEFAULT_FPS: u32 = 60;
 const DEFAULT_MONITOR_INDEX: usize = 0;
 const DEFAULT_MONITOR: u32 = (DEFAULT_MONITOR_INDEX as u32) + 1;
@@ -182,6 +182,9 @@ impl Settings {
         self.persisted.color = DEFAULT_COLOR;
         self.color = image::premultiply_alpha(DEFAULT_COLOR);
         self.persisted.image_path = None;
+        if self.render_mode == RenderMode::Image {
+            self.render_mode = RenderMode::Crosshair;
+        }
         self.image = None;
     }
 
