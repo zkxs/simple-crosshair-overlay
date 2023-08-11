@@ -16,12 +16,11 @@ A simple native crosshair overlay without unnecessary bloat. Free and open-sourc
 ## Features
 
 - Works on any application that's not fullscreen exclusive. You **must** use windowed or borderless-windowed mode on your game. This was an intentional design choice, as rendering into a fullscreen-exclusive game is not anticheat-compatible.
-- Performant: the overlay is only redrawn when you change the crosshair.
+- Performant: the overlay is only redrawn when you change the crosshair. CPU and memory usage are minimal, and the GPU isn't used at all.
 - Minimal UI: managed via a tray icon and hotkeys.
-- Comes with a simple default crosshair that can be scaled to your preference
-- Can use custom PNG images as crosshairs. Alpha is not only supported: it's mandatory. Because why would you want an opaque rectangle as your crosshair?
-- Crosshair settings are saved when you exit the application.
-- No sprawling installation. The only file this program uses is small configuration saved in `%appdata%\simple-crosshair-overlay`.
+- Comes with a simple default crosshair that can be scaled and recolored to your preference.
+- Can use custom PNG images as crosshairs.
+- No installer. The application is completely portable. The only file this program creates is small configuration saved in `%appdata%\simple-crosshair-overlay`.
 
 ## Installation
 
@@ -37,11 +36,12 @@ Linux is presently unsupported. See [issue #6](https://github.com/zkxs/simple-cr
 
 Use the tray icon to:
 
-- toggle crosshair visibility (you can also use Ctrl+H)
-- toggle **Adjust Mode** (you can also use Ctrl+J)
-- load a PNG image as your crosshair
-- reset crosshair to default settings
-- safely exit the application and save your settings
+- Toggle crosshair visibility (you can also use Ctrl+H)
+- Toggle **Adjust Mode** (you can also use Ctrl+J)
+- Pick a color for the default crosshair (you can also use Ctrl+K).
+- Load a PNG image as your crosshair
+- Reset crosshair to default settings
+- Safely exit the application and save your settings
 
 In **Adjust Mode**:
 
@@ -49,17 +49,21 @@ In **Adjust Mode**:
 - PageUp/PageDown to increase/decrease the crosshair scale
 - Ctrl+M to cycle through your monitors
 
-### Manual Config Editing
+### Custom PNG Crosshairs
 
-The config file is saved to `%appdata%\simple-crosshair-overlay\config\config.toml`. The following settings currently
-cannot be edited in-application and can only be changed via manual config file editing.
+Your PNG file must use RGBA pixel format. Most PNGs are already saved this way, but you may need to specifically save
+it with an alpha channel if Simple Crosshair Overlay is giving you an error.
 
-**Color** of the default crosshair can be manually edited by  changing the `color` setting in `config.toml` to an ARGB
-hexadecimal value. So for example `B2FF0000` for red with a bit of transparency, or `FF00FF00` for fully opaque green.
-Note that this has no effect on custom PNG crosshairs.
+Also note that changing the color of the built-in crosshair has no effect on custom PNG crosshairs. If you want your custom
+crosshair in a different color you'll have to make that change in an image editor.
 
-**Hotkeys** can be manually edited by changing configs in the `key_bindings` section of `config.toml` using the Keycode
-values defined in [keycode.rs](src/hotkey/keycode.rs).
+### Changing Hotkeys
+
+Hotkeys cannot currently be changed in-application. To edit your hotkeys, do the following:
+
+1. Open the config file `%appdata%\simple-crosshair-overlay\config\config.toml`. If this file does not exist, starting
+   and exiting the program once will create it.
+2. Change hotkeys in the `key_bindings` section by referencing the Keycode values defined in [keycode.rs](src/hotkey/keycode.rs)
 
 ## Installing from Source
 
