@@ -14,7 +14,7 @@ use winit::window::Window;
 
 use crate::{CONFIG_PATH, debug_println, show_warning};
 use crate::hotkey::KeyBindings;
-use crate::util::image::{Image, load_png, premultiply_alpha, rectangle_center};
+use crate::util::image::{self, Image};
 use crate::util::numeric::fps_to_tick_interval;
 
 const DEFAULT_OFFSET_X: i32 = 0;
@@ -54,14 +54,14 @@ pub struct PersistedSettings {
 
 impl PersistedSettings {
     fn load(self) -> Settings {
-        let color = premultiply_alpha(self.color);
+        let color = image::premultiply_alpha(self.color);
 
         // make sure that if the user manually put an empty string in their config we don't explode
         let filtered_image_path = self.image_path.as_ref()
             .filter(|path| !path.as_os_str().is_empty());
 
         let image = if let Some(image_path) = filtered_image_path {
-            match load_png(image_path.as_path()) {
+            match image::load_png(image_path.as_path()) {
                 Ok(image) => Some(image),
                 Err(e) => {
                     show_warning(format!("Failed loading saved image_path \"{}\".\n\n{}", image_path.display(), e));
@@ -73,8 +73,8 @@ impl PersistedSettings {
         };
 
         let tick_interval = fps_to_tick_interval(self.fps);
-
         let monitor_index = usize::try_from(self.monitor.checked_sub(1).unwrap()).unwrap();
+        let render_mode = RenderMode::from(&image);
 
         Settings {
             persisted: self,
@@ -84,6 +84,7 @@ impl PersistedSettings {
             monitor_index,
             desired_window_position: PhysicalPosition::default(),
             desired_window_size: PhysicalSize::default(),
+            render_mode,
         }
     }
 }
@@ -108,21 +109,55 @@ impl Default for PersistedSettings {
 pub struct Settings {
     pub persisted: PersistedSettings,
     pub color: u32,
-    pub image: Option<Image>,
+    image: Option<Image>,
     pub tick_interval: Duration,
     /// 0-indexed monitor to render the overlay to
     pub monitor_index: usize,
     pub desired_window_position: PhysicalPosition<i32>,
     pub desired_window_size: PhysicalSize<u32>,
+    pub render_mode: RenderMode,
 }
 
 impl Settings {
     pub fn size(&self) -> PhysicalSize<u32> {
-        if let Some(image) = &self.image {
-            PhysicalSize::new(image.width, image.height)
-        } else {
-            PhysicalSize::new(self.persisted.window_width, self.persisted.window_height)
+        match self.render_mode {
+            RenderMode::Image => {
+                let image = self.image.as_ref().unwrap();
+                PhysicalSize::new(image.width, image.height)
+            }
+            RenderMode::Crosshair => {
+                PhysicalSize::new(self.persisted.window_width, self.persisted.window_height)
+            }
+            RenderMode::ColorPicker => {
+                PhysicalSize::new(256, 256)
+            }
         }
+    }
+
+    pub fn image(&self) -> Option<&Image> {
+        self.image.as_ref()
+    }
+
+    pub fn toggle_pick_color(&mut self) {
+        self.render_mode = if self.render_mode == RenderMode::ColorPicker {
+            RenderMode::from(&self.image)
+        } else {
+            RenderMode::ColorPicker
+        }
+    }
+    fn start_pick_color(&mut self) {
+        self.render_mode = RenderMode::ColorPicker;
+    }
+
+    fn cancel_pick_color(&mut self) {
+        self.render_mode = RenderMode::from(&self.image);
+    }
+
+    /// Set the color of the generated crosshair. The provided `color` must not have premultiplied alpha (yet)
+    pub fn set_color(&mut self, color: u32) {
+        self.persisted.color = color;
+        self.color = image::premultiply_alpha(color);
+        self.render_mode = RenderMode::Crosshair;
     }
 
     pub fn is_scalable(&self) -> bool {
@@ -141,9 +176,10 @@ impl Settings {
 
     /// load a new PNG at runtime
     pub fn load_png(&mut self, path: PathBuf) -> io::Result<()> {
-        let image = load_png(path.as_path())?;
+        let image = image::load_png(path.as_path())?;
         self.persisted.image_path = Some(path);
         self.image = Some(image);
+        self.render_mode = RenderMode::Image;
         Ok(())
     }
 
@@ -203,7 +239,7 @@ impl Settings {
         let window_height = i32::try_from(window_height).unwrap();
 
         // calculate the coordinates of the center of the monitor, rounding down
-        let (monitor_center_x, monitor_center_y) = rectangle_center(monitor_x, monitor_y, monitor_width, monitor_height);
+        let (monitor_center_x, monitor_center_y) = image::rectangle_center(monitor_x, monitor_y, monitor_width, monitor_height);
 
         // adjust by half our window size, as we want the coordinates at which to place the top-left corner of the window
         let window_x = monitor_center_x - (window_width / 2) + self.persisted.window_dx;
@@ -217,7 +253,7 @@ impl Settings {
 impl Default for Settings {
     fn default() -> Self {
         let savable = PersistedSettings::default();
-        let color = premultiply_alpha(savable.color);
+        let color = image::premultiply_alpha(savable.color);
         Settings {
             persisted: savable,
             color,
@@ -226,6 +262,24 @@ impl Default for Settings {
             monitor_index: DEFAULT_MONITOR_INDEX,
             desired_window_position: PhysicalPosition::default(),
             desired_window_size: PhysicalSize::default(),
+            render_mode: RenderMode::Crosshair,
+        }
+    }
+}
+
+#[derive(Eq, PartialEq)]
+pub enum RenderMode {
+    Image,
+    Crosshair,
+    ColorPicker,
+}
+
+impl From<&Option<Image>> for RenderMode {
+    fn from(value: &Option<Image>) -> Self {
+        if value.is_some() {
+            RenderMode::Image
+        } else {
+            RenderMode::Crosshair
         }
     }
 }

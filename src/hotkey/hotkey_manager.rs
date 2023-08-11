@@ -27,6 +27,10 @@ fn default_cycle_monitor_keybind() -> KeyBinding {
     KeyBindings::default().cycle_monitor
 }
 
+fn default_toggle_color_picker_keybind() -> KeyBinding {
+    KeyBindings::default().toggle_color_picker
+}
+
 /// format user can specify keybindings with
 #[derive(Serialize, Deserialize)]
 pub struct KeyBindings {
@@ -40,6 +44,8 @@ pub struct KeyBindings {
     scale_decrease: KeyBinding,
     toggle_hidden: KeyBinding,
     toggle_adjust: KeyBinding,
+    #[serde(default = "default_toggle_color_picker_keybind")]
+    toggle_color_picker: KeyBinding,
 }
 
 impl Default for KeyBindings {
@@ -54,6 +60,7 @@ impl Default for KeyBindings {
             scale_decrease: vec![Keycode::PageDown],
             toggle_hidden: vec![Keycode::LControl, Keycode::H],
             toggle_adjust: vec![Keycode::LControl, Keycode::J],
+            toggle_color_picker: vec![Keycode::LControl, Keycode::K],
         }
     }
 }
@@ -69,6 +76,7 @@ struct KeyBuffer {
     scale_decrease_mask: Bitmask,
     toggle_hidden_mask: Bitmask,
     toggle_adjust_mask: Bitmask,
+    toggle_color_picker_mask: Bitmask,
     any_movement_mask: Bitmask,
     any_scale_mask: Bitmask,
 }
@@ -87,6 +95,7 @@ impl KeyBuffer {
         let scale_decrease_mask = update_key_buffer_values(&key_bindings.scale_decrease, &mut bit, &mut lookup_table)?;
         let toggle_hidden_mask = update_key_buffer_values(&key_bindings.toggle_hidden, &mut bit, &mut lookup_table)?;
         let toggle_adjust_mask = update_key_buffer_values(&key_bindings.toggle_adjust, &mut bit, &mut lookup_table)?;
+        let toggle_color_picker_mask = update_key_buffer_values(&key_bindings.toggle_color_picker, &mut bit, &mut lookup_table)?;
         let any_movement_mask = up_mask | down_mask | left_mask | right_mask;
         let any_scale_mask = scale_increase_mask | scale_decrease_mask;
 
@@ -102,6 +111,7 @@ impl KeyBuffer {
                 scale_decrease_mask,
                 toggle_hidden_mask,
                 toggle_adjust_mask,
+                toggle_color_picker_mask,
                 any_movement_mask,
                 any_scale_mask,
             }
@@ -166,6 +176,11 @@ impl KeyBuffer {
     /// Check if the currently pressed keys contain the "toggle_adjust" key combination
     fn toggle_adjust(&self, buf: Bitmask) -> bool {
         buf & self.toggle_adjust_mask == self.toggle_adjust_mask
+    }
+
+    /// Check if the currently pressed keys contain the "toggle_color_picker" key combination
+    fn toggle_color_picker(&self, buf: Bitmask) -> bool {
+        buf & self.toggle_color_picker_mask == self.toggle_color_picker_mask
     }
 
     //TODO: this is not strictly correct: if a movement keybind uses multiple keys it breaks, as it will return `true` for partial binding presses
@@ -233,6 +248,12 @@ impl HotkeyManager {
     pub fn toggle_adjust(&self) -> bool {
         let key_buffer: &KeyBuffer = &self.key_buffer;
         !key_buffer.toggle_adjust(self.previous_state) && key_buffer.toggle_adjust(self.state)
+    }
+
+    /// check if "toggle_color_picker" key combination was just pressed
+    pub fn toggle_color_picker(&self) -> bool {
+        let key_buffer: &KeyBuffer = &self.key_buffer;
+        !key_buffer.toggle_color_picker(self.previous_state) && key_buffer.toggle_color_picker(self.state)
     }
 
     /// check if "cycle_monitor" key combination was just pressed

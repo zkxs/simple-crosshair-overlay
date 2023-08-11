@@ -22,7 +22,8 @@ use winit::event_loop::EventLoop;
 use winit::window::{Window, WindowBuilder, WindowLevel};
 
 use crate::hotkey::HotkeyManager;
-use crate::settings::Settings;
+use crate::settings::{RenderMode, Settings};
+use crate::util::image;
 
 mod settings;
 mod custom_serializer;
@@ -223,10 +224,10 @@ fn main() {
             Event::UserEvent(_) => {
                 let keys = device_state.get_keys();
                 hotkey_manager.process_keys(&keys);
+                let mut window_position_dirty = false;
+                let mut window_scale_dirty = false;
 
                 if menu_items.adjust_button.is_checked() {
-                    let mut window_position_dirty = false;
-                    let mut window_scale_dirty = false;
 
                     if hotkey_manager.move_up() != 0 {
                         settings.persisted.window_dy -= hotkey_manager.move_up() as i32;
@@ -269,12 +270,6 @@ fn main() {
                     if hotkey_manager.toggle_adjust() {
                         menu_items.adjust_button.set_checked(false)
                     }
-
-                    if window_scale_dirty {
-                        on_window_size_or_position_change(&window, &mut settings);
-                    } else if window_position_dirty {
-                        on_window_position_change(&window, &mut settings);
-                    }
                 } else if hotkey_manager.toggle_adjust() {
                     // adjust button is NOT checked
                     menu_items.adjust_button.set_checked(true)
@@ -286,6 +281,17 @@ fn main() {
                     if !window_visible {
                         menu_items.adjust_button.set_checked(false)
                     }
+                }
+
+                if hotkey_manager.toggle_color_picker() {
+                    settings.toggle_pick_color();
+                    window_scale_dirty = true;
+                }
+
+                if window_scale_dirty {
+                    on_window_size_or_position_change(&window, &mut settings);
+                } else if window_position_dirty {
+                    on_window_position_change(&window, &mut settings);
                 }
             }
             Event::WindowEvent { event: WindowEvent::Moved(position), .. } => {
@@ -392,50 +398,60 @@ fn draw_window(surface: &mut Surface, settings: &Settings, force: bool) {
         NonZeroU32::new(window_height).unwrap(),
     ).unwrap();
 
+    let width = window_width as usize;
+    let height = window_height as usize;
+
     let mut buffer = surface.buffer_mut().unwrap();
 
     if force || buffer.age() == 0 { // only redraw if the buffer is uninitialized OR redraw is being forced
-        if let Some(image) = &settings.image {
-            // draw our image
-            buffer.copy_from_slice(image.data.as_slice());
-        } else {
-            // draw a generated crosshair
+        match settings.render_mode {
+            RenderMode::Image => {
+                // draw our image
+                buffer.copy_from_slice(settings.image().unwrap().data.as_slice());
+            }
+            RenderMode::Crosshair => {
+                // draw a generated crosshair
 
-            const FULL_ALPHA: u32 = 0x00000000;
+                const FULL_ALPHA: u32 = 0x00000000;
 
-            let width = settings.persisted.window_width as usize;
-            let height = settings.persisted.window_height as usize;
+                if width <= 2 || height <= 2 {
+                    // edge case where there simply aren't enough pixels to draw a crosshair, so we just fall back to a dot
+                    buffer.fill(settings.color);
+                } else {
+                    // draw a simple crosshair. Think a `+` shape.
+                    buffer.fill(FULL_ALPHA);
 
-            if width <= 2 || height <= 2 {
-                // edge case where there simply aren't enough pixels to draw a crosshair, so we just fall back to a dot
-                buffer.fill(settings.color);
-            } else {
-                // draw a simple crosshair. Think a `+` shape.
-                buffer.fill(FULL_ALPHA);
-
-                // horizontal line
-                let start = width * (height / 2);
-                for x in start..start + width {
-                    buffer[x] = settings.color;
-                }
-
-                // second horizontal line (if size is even we need this for centering)
-                if height % 2 == 0 {
-                    let start = start - width;
+                    // horizontal line
+                    let start = width * (height / 2);
                     for x in start..start + width {
                         buffer[x] = settings.color;
                     }
-                }
 
-                // vertical line
-                for y in 0..height {
-                    buffer[width * y + width / 2] = settings.color;
-                }
+                    // second horizontal line (if size is even we need this for centering)
+                    if height % 2 == 0 {
+                        let start = start - width;
+                        for x in start..start + width {
+                            buffer[x] = settings.color;
+                        }
+                    }
 
-                // second vertical line (if size is even we need this for centering)
-                if width % 2 == 0 {
+                    // vertical line
                     for y in 0..height {
-                        buffer[width * y + width / 2 - 1] = settings.color;
+                        buffer[width * y + width / 2] = settings.color;
+                    }
+
+                    // second vertical line (if size is even we need this for centering)
+                    if width % 2 == 0 {
+                        for y in 0..height {
+                            buffer[width * y + width / 2 - 1] = settings.color;
+                        }
+                    }
+                }
+            }
+            RenderMode::ColorPicker => {
+                for y in 0 .. height {
+                    for x in 0 .. width {
+                        buffer[y * height + x] = image::color_from_coordinates(x, y, width, height);
                     }
                 }
             }

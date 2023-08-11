@@ -22,6 +22,13 @@ pub struct Image {
     pub data: Vec<u32>,
 }
 
+/// calculate an ARGB color from picked coordinates from a color picker
+/// this color does NOT have premultiplied alpha
+pub fn color_from_coordinates(x: usize, y: usize, width: usize, height: usize) -> u32 {
+    //TODO: implement
+    0xFFFFFFFF
+}
+
 /// Convert BE RGBA to LE ARGB, premultiplying alpha where required by the target platform.
 #[inline(always)]
 #[cfg(target_os = "windows")]
