@@ -24,6 +24,7 @@ const DEFAULT_FPS: u32 = 60;
 const DEFAULT_MONITOR_INDEX: usize = 0;
 const DEFAULT_MONITOR: u32 = (DEFAULT_MONITOR_INDEX as u32) + 1;
 const COLOR_PICKER_SIZE: u32 = 256;
+const DEFAULT_COLOR: u32 = 0xB2FF0000; // 70% alpha red;
 
 // needed for serde, as it can't read constants directly
 const fn default_fps() -> u32 {
@@ -97,7 +98,7 @@ impl Default for PersistedSettings {
             window_dy: DEFAULT_OFFSET_Y,
             window_width: DEFAULT_SIZE,
             window_height: DEFAULT_SIZE,
-            color: 0xB2FF0000, // 70% alpha red
+            color: DEFAULT_COLOR,
             fps: DEFAULT_FPS,
             image_path: None,
             key_bindings: KeyBindings::default(),
@@ -178,6 +179,8 @@ impl Settings {
         self.persisted.window_dy = DEFAULT_OFFSET_Y;
         self.persisted.window_width = DEFAULT_SIZE;
         self.persisted.window_height = DEFAULT_SIZE;
+        self.persisted.color = DEFAULT_COLOR;
+        self.color = image::premultiply_alpha(DEFAULT_COLOR);
         self.persisted.image_path = None;
         self.image = None;
     }
