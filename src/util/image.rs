@@ -150,7 +150,7 @@ fn hue_alpha_to_argb(hue: u8, alpha: u8) -> u32 {
     let [r, g, b] = match hue {
         hue if hue < SECTION_1 => [MAX_COLOR, raw_hue, 0],
         hue if hue < SECTION_2 => [MAX_COLOR - raw_hue, MAX_COLOR, 0],
-        hue if hue < SECTION_3 => [0, MAX_COLOR - raw_hue, raw_hue],
+        hue if hue < SECTION_3 => [0, MAX_COLOR, raw_hue],
         hue if hue < SECTION_4 => [0, MAX_COLOR - raw_hue, MAX_COLOR],
         hue if hue < SECTION_5 => [raw_hue, 0, MAX_COLOR],
         _ => [MAX_COLOR, 0, MAX_COLOR - raw_hue],
@@ -485,6 +485,18 @@ mod test_color_picker {
             let expected_argb = hsv_to_argb_precise(hue, 255, 255);
             let error = color_error(actual_argb, expected_argb);
             assert!(error <= max_error, "precise and optimized hv->argb differ: @ hue {}, {:08X} != {:08X}, error={}", hue, actual_argb, expected_argb, error);
+        }
+    }
+
+    #[test]
+    fn test_ha_to_argb_hue_only() {
+        let max_error = 5f64;
+
+        for hue in 0..=255 {
+            let actual_argb = hue_alpha_to_argb(hue, 255);
+            let expected_argb = hsv_to_argb_precise(hue, 255, 255);
+            let error = color_error(actual_argb, expected_argb);
+            assert!(error <= max_error, "precise and optimized ha->argb differ: @ hue {}, {:08X} != {:08X}, error={}", hue, actual_argb, expected_argb, error);
         }
     }
 
