@@ -22,19 +22,85 @@ pub struct Image {
     pub data: Vec<u32>,
 }
 
-/// calculate an ARGB color from picked coordinates from a color picker
-/// this color does NOT have premultiplied alpha
-pub fn hue_value_color_from_coordinates(x: usize, y: usize, width: usize, height: usize) -> u32 {
-    const EXPECTED_SIZE: usize = 256;
-    debug_assert_eq!(width, EXPECTED_SIZE);
-    debug_assert_eq!(height, EXPECTED_SIZE);
+/// side-length of the color picker box
+pub const COLOR_PICKER_SIZE: usize = 256;
 
+#[inline(always)]
+pub fn draw_color_picker(buffer: &mut [u32]) {
+    draw_color_picker_naive(buffer)
+}
+
+#[inline(always)]
+fn _draw_color_picker_optimized(buffer: &mut [u32]) {
+    const COLOR_PICKER_NUM_SECTIONS: u8 = 6;
+    /// floor(256/6)
+    const COLOR_PICKER_SECTION_WIDTH: usize = 42;
+    pub const COLOR_PICKER_SIZE: usize = COLOR_PICKER_SECTION_WIDTH * (COLOR_PICKER_NUM_SECTIONS as usize);
+
+    const CBUFFER_SIZE: usize = COLOR_PICKER_SIZE * COLOR_PICKER_SIZE;
+    debug_assert_eq!(buffer.len(), CBUFFER_SIZE, "draw_color_picker() passed buffer of wrong size");
+    const MAX_VALUE: u8 = 255;
+
+    const SECTION_0: usize = 0;
+    const SECTION_1: usize = SECTION_0 + COLOR_PICKER_SECTION_WIDTH;
+    const SECTION_2: usize = SECTION_1 + COLOR_PICKER_SECTION_WIDTH;
+    const SECTION_3: usize = SECTION_2 + COLOR_PICKER_SECTION_WIDTH;
+    const SECTION_4: usize = SECTION_3 + COLOR_PICKER_SECTION_WIDTH;
+    const SECTION_5: usize = SECTION_4 + COLOR_PICKER_SECTION_WIDTH;
+
+    let mut value = MAX_VALUE;
+    for row in 0..COLOR_PICKER_SIZE {
+        let mut ramp_up = 0;
+        let mut ramp_down = 255;
+        let row_offset = row * COLOR_PICKER_SIZE;
+        for column_offset in 0..COLOR_PICKER_SECTION_WIDTH {
+            // the old implementation calls `multiply_color_channels_u8` 3x more (once per pixel)
+            let ramp_up_times_value = multiply_color_channels_u8(ramp_up, value);
+            let ramp_down_times_value = multiply_color_channels_u8(ramp_down, value);
+
+            // write six pixels at once
+            buffer[row_offset + SECTION_0 + column_offset] = u32::from_le_bytes([0, ramp_up_times_value, value, 255]);
+            buffer[row_offset + SECTION_1 + column_offset] = u32::from_le_bytes([0, value, ramp_down_times_value, 255]);
+            buffer[row_offset + SECTION_2 + column_offset] = u32::from_le_bytes([ramp_up_times_value, value, 0, 255]); // only supposed to be 42 wide, but we just overwrite it with the next section
+            buffer[row_offset + SECTION_3 + column_offset] = u32::from_le_bytes([value, ramp_down_times_value, 0, 255]);
+            buffer[row_offset + SECTION_4 + column_offset] = u32::from_le_bytes([value, 0, ramp_up_times_value, 255]);
+            buffer[row_offset + SECTION_5 + column_offset] = u32::from_le_bytes([ramp_down_times_value, 0, value, 255]);
+
+            ramp_up = ramp_up.wrapping_add(COLOR_PICKER_NUM_SECTIONS);
+            ramp_down = ramp_down.wrapping_sub(COLOR_PICKER_NUM_SECTIONS);
+        }
+        value = value.wrapping_sub(1);
+    }
+
+    // six sections:
+    // ranges: 0..43, 43..86, 86..128, 128..171, 171..214, 214..256
+    // sizes: 43, 43, 42, 43, 43, 42
+}
+
+#[inline(always)]
+fn draw_color_picker_naive(buffer: &mut [u32]) {
+    const EXPECTED_SIZE: usize = 256;
+    const BUFFER_SIZE: usize = EXPECTED_SIZE * EXPECTED_SIZE;
+    debug_assert_eq!(buffer.len(), BUFFER_SIZE, "draw_color_picker() passed buffer of wrong size");
+
+    for y in 0..EXPECTED_SIZE {
+        for x in 0..EXPECTED_SIZE {
+            buffer[y * EXPECTED_SIZE + x] = hue_value_color_from_coordinates(x, y);
+        }
+    }
+}
+
+/// calculate an ARGB color from picked coordinates from a color picker.
+/// this color does NOT have premultiplied alpha.
+/// `x` and `y` must be within 0..255
+fn hue_value_color_from_coordinates(x: usize, y: usize) -> u32 {
     hue_value_to_argb(x as u8, 255 - (y as u8))
 }
 
 /// calculate an ARGB color from picked coordinates from a color picker
 /// this color does NOT have premultiplied alpha
 pub fn hue_alpha_color_from_coordinates(x: usize, y: usize, width: usize, height: usize) -> u32 {
+    //TODO: this doesn't work for the 252x252 optimized version of the color picker
     const EXPECTED_SIZE: usize = 256;
     debug_assert_eq!(width, EXPECTED_SIZE);
     debug_assert_eq!(height, EXPECTED_SIZE);
@@ -294,7 +360,7 @@ mod test_pixel_format {
     }
 
     /// alpha premultiply implemented with f64 precision and rounding to nearest int
-    fn premultiply_alpha_precise_u8(c: u8, a: u8) -> u8 {
+    fn multiply_color_channels_u8_precise(c: u8, a: u8) -> u8 {
         (c as f64 * a as f64 / 255f64).round() as u8
     }
 
@@ -304,8 +370,8 @@ mod test_pixel_format {
         // test for some every `c` for various predefined `a`
         // what's important here is to contrive c*a/255 for results that will round in different ways while avoiding an exhaustive test, as that'd be slow
         for c in 0..=255 {
-            for a in [0, 1, 127, 128, 254, 255] {
-                let precise_result = premultiply_alpha_precise_u8(c, a);
+            for a in [0, 1, 2, 3, 4, 20, 30, 40, 50, 60, 61, 62, 63, 64, 77, 127, 128, 254, 255] {
+                let precise_result = multiply_color_channels_u8_precise(c, a);
                 let actual_result = multiply_color_channels_u8(c, a);
                 assert_eq!(actual_result, precise_result, "mismatch for c={c} a={a}")
             }
@@ -351,5 +417,100 @@ mod test_rectangle_center {
     #[test]
     fn test_1080p_top_centered() {
         assert_eq!(rectangle_center(397, -1080, 1920, 1080), (397 + 960, -1080 + 540));
+    }
+}
+
+#[cfg(test)]
+mod test_color_picker {
+    use super::*;
+
+    /// see https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae
+    /// this is a HSV -> RGB conversion
+    fn hsv_to_argb_precise(hue: u8, saturation: u8, value: u8) -> u32 {
+        const HUE_RATIO: f64 = 360.0 / 255.0;
+        let hue = hue as f64 * HUE_RATIO;
+        let saturation = saturation as f64 / 255.0;
+        let value = value as f64 / 255.0;
+
+        let hue_over_60 = hue / 60.0;
+        let chroma = value * saturation;
+        let intermediate_color = chroma * (1.0 - (hue_over_60 % 2.0 - 1.0).abs());
+
+        let [r, g, b] = match hue_over_60 {
+            h if h < 1.0 => [chroma, intermediate_color, 0.0],
+            h if h < 2.0 => [intermediate_color, chroma, 0.0],
+            h if h < 3.0 => [0.0, chroma, intermediate_color],
+            h if h < 4.0 => [0.0, intermediate_color, chroma],
+            h if h < 5.0 => [intermediate_color, 0.0, chroma],
+            _ => [chroma, 0.0, intermediate_color],
+        };
+
+        let r = (r * 255.0).round() as u8;
+        let g = (g * 255.0).round() as u8;
+        let b = (b * 255.0).round() as u8;
+
+        u32::from_le_bytes([b, g, r, 255])
+    }
+
+    fn color_error(actual: u32, expected: u32) -> f64 {
+        if actual == expected {
+            return 0.0;
+        }
+
+        let [b1, g1, r1, a1] = actual.to_le_bytes();
+        let [b2, g2, r2, a2] = expected.to_le_bytes();
+
+        // calculate deltas
+        let b = b1 as f64 - b2 as f64;
+        let g = g1 as f64 - g2 as f64;
+        let r = r1 as f64 - r2 as f64;
+        let a = a1 as f64 - a2 as f64;
+
+        // square the components
+        let b = b * b;
+        let g = g * g;
+        let r = r * r;
+        let a = a * a;
+
+        // norm the components
+        (b + g + r + a).sqrt()
+    }
+
+    #[test]
+    fn test_hv_to_argb_hue_only() {
+        let max_error = 5f64;
+
+        for hue in 0..=255 {
+            let actual_argb = hue_value_to_argb(hue, 255);
+            let expected_argb = hsv_to_argb_precise(hue, 255, 255);
+            let error = color_error(actual_argb, expected_argb);
+            assert!(error <= max_error, "precise and optimized hv->argb differ: @ hue {}, {:08X} != {:08X}, error={}", hue, actual_argb, expected_argb, error);
+        }
+    }
+
+    #[test]
+    fn test_hv_to_argb_value_only() {
+        let max_error = 5f64;
+
+        for value in 0..=255 {
+            let actual_argb = hue_value_to_argb(255, value);
+            let expected_argb = hsv_to_argb_precise(255, 255, value);
+            let error = color_error(actual_argb, expected_argb);
+            assert!(error <= max_error, "precise and optimized hv->argb differ: @ value {}, {:08X} != {:08X}, error={}", value, actual_argb, expected_argb, error);
+        }
+    }
+
+    //#[test]
+    fn test_optimized_color_picker() {
+        const BUFFER_DIMENSION: usize = 256;
+        const BUFFER_SIZE: usize = BUFFER_DIMENSION * BUFFER_DIMENSION;
+
+        let mut actual_buffer = vec![0; BUFFER_SIZE];
+        let mut expected_buffer = vec![0; BUFFER_SIZE];
+
+        draw_color_picker_naive(&mut expected_buffer);
+        draw_color_picker(&mut actual_buffer);
+
+        assert_eq!(actual_buffer, expected_buffer, "naive and optimized color picker draws differ");
     }
 }

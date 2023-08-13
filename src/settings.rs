@@ -23,7 +23,6 @@ const DEFAULT_SIZE: u32 = 16;
 const DEFAULT_FPS: u32 = 60;
 const DEFAULT_MONITOR_INDEX: usize = 0;
 const DEFAULT_MONITOR: u32 = (DEFAULT_MONITOR_INDEX as u32) + 1;
-const COLOR_PICKER_SIZE: u32 = 256;
 const DEFAULT_COLOR: u32 = 0xB2FF0000; // 70% alpha red;
 
 // needed for serde, as it can't read constants directly
@@ -131,7 +130,7 @@ impl Settings {
                 PhysicalSize::new(self.persisted.window_width, self.persisted.window_height)
             }
             RenderMode::ColorPicker => {
-                PhysicalSize::new(COLOR_PICKER_SIZE, COLOR_PICKER_SIZE)
+                PhysicalSize::new(image::COLOR_PICKER_SIZE as u32, image::COLOR_PICKER_SIZE as u32)
             }
         }
     }

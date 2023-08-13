@@ -502,11 +502,7 @@ fn draw_window(surface: &mut Surface, settings: &Settings, force: bool) {
                 }
             }
             RenderMode::ColorPicker => {
-                for y in 0..height {
-                    for x in 0..width {
-                        buffer[y * height + x] = image::hue_value_color_from_coordinates(x, y, width, height);
-                    }
-                }
+                image::draw_color_picker(&mut buffer);
             }
         }
     }
