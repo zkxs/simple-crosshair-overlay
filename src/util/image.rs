@@ -31,7 +31,7 @@ pub fn draw_color_picker(buffer: &mut [u32]) {
 }
 
 #[inline(always)]
-fn _draw_color_picker_optimized(buffer: &mut [u32]) {
+pub fn _draw_color_picker_optimized(buffer: &mut [u32]) {
     const COLOR_PICKER_NUM_SECTIONS: u8 = 6;
     /// floor(256/6)
     const COLOR_PICKER_SECTION_WIDTH: usize = 42;

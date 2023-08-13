@@ -29,7 +29,6 @@ png = "0.17"
 native-dialog = "0.6"
 device_query = "1"
 
-
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3", features = ["winuser", "windef", "minwindef"] }
 
@@ -39,3 +38,10 @@ ico = "0.3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.16" # must use this old version of gtk because it's what tray-icon 0.8 needs
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "color_picker"
+harness = false
