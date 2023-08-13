@@ -512,8 +512,9 @@ mod test_color_picker {
         }
     }
 
+    //TODO: test this once it's done
     //#[test]
-    fn test_optimized_color_picker() {
+    fn _test_optimized_color_picker() {
         const BUFFER_DIMENSION: usize = 256;
         const BUFFER_SIZE: usize = BUFFER_DIMENSION * BUFFER_DIMENSION;
 
@@ -521,7 +522,7 @@ mod test_color_picker {
         let mut expected_buffer = vec![0; BUFFER_SIZE];
 
         draw_color_picker_naive(&mut expected_buffer);
-        draw_color_picker(&mut actual_buffer);
+        _draw_color_picker_optimized(&mut actual_buffer);
 
         assert_eq!(actual_buffer, expected_buffer, "naive and optimized color picker draws differ");
     }
