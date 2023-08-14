@@ -110,7 +110,7 @@ pub fn hue_alpha_color_from_coordinates(x: usize, y: usize, width: usize, height
 
 /// see https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae
 /// this is a HSV -> RGB conversion, except S is always set to 100%, which simplifies things
-fn hue_value_to_argb(hue: u8, value: u8) -> u32 {
+pub fn hue_value_to_argb(hue: u8, value: u8) -> u32 {
     const MAX_COLOR: u8 = 255;
     // we need the ceiling of each of the 5 boundaries between the 6 sections
     const SECTION_1: u8 = 43; // 256/6*1 = 42.667
@@ -135,7 +135,7 @@ fn hue_value_to_argb(hue: u8, value: u8) -> u32 {
 }
 
 /// this is a HSV -> RGB conversion, except S and V are always set to 100%, which simplifies things
-fn hue_alpha_to_argb(hue: u8, alpha: u8) -> u32 {
+pub fn hue_alpha_to_argb(hue: u8, alpha: u8) -> u32 {
     const MAX_COLOR: u8 = 255;
     // we need the ceiling of each of the 5 boundaries between the 6 sections
     const SECTION_1: u8 = 43; // 256/6*1 = 42.667
@@ -231,7 +231,7 @@ pub fn premultiply_alpha(color: u32) -> u32 {
 ///
 /// Finally, we can round to nearest int by simply adding 255 / 2 ~= 127 to the dividend
 #[inline(always)]
-fn multiply_color_channels_u8(a: u8, b: u8) -> u8 {
+pub fn multiply_color_channels_u8(a: u8, b: u8) -> u8 {
     const MAX_COLOR: u16 = 255;
     const HALF_COLOR: u16 = 127;
 
@@ -300,6 +300,41 @@ pub fn rectangle_center(x: i32, y: i32, width: i32, height: i32) -> (i32, i32) {
     )
 }
 
+/// see https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae
+/// this is a HSV -> RGB conversion
+#[cfg(any(test, feature = "benchmarking"))]
+pub fn _hsv_to_argb_precise(hue: u8, saturation: u8, value: u8) -> u32 {
+    const HUE_RATIO: f64 = 360.0 / 255.0;
+    let hue = hue as f64 * HUE_RATIO;
+    let saturation = saturation as f64 / 255.0;
+    let value = value as f64 / 255.0;
+
+    let hue_over_60 = hue / 60.0;
+    let chroma = value * saturation;
+    let intermediate_color = chroma * (1.0 - (hue_over_60 % 2.0 - 1.0).abs());
+
+    let [r, g, b] = match hue_over_60 {
+        h if h < 1.0 => [chroma, intermediate_color, 0.0],
+        h if h < 2.0 => [intermediate_color, chroma, 0.0],
+        h if h < 3.0 => [0.0, chroma, intermediate_color],
+        h if h < 4.0 => [0.0, intermediate_color, chroma],
+        h if h < 5.0 => [intermediate_color, 0.0, chroma],
+        _ => [chroma, 0.0, intermediate_color],
+    };
+
+    let r = (r * 255.0).round() as u8;
+    let g = (g * 255.0).round() as u8;
+    let b = (b * 255.0).round() as u8;
+
+    u32::from_le_bytes([b, g, r, 255])
+}
+
+/// alpha premultiply implemented with f64 precision and rounding to nearest int
+#[cfg(any(test, feature = "benchmarking"))]
+pub fn _multiply_color_channels_u8_precise(c: u8, a: u8) -> u8 {
+    (c as f64 * a as f64 / 255f64).round() as u8
+}
+
 #[cfg(test)]
 mod test_pixel_format {
     use super::*;
@@ -359,11 +394,6 @@ mod test_pixel_format {
         assert_eq!(multiply_color_channels_u8(0, 0), 0);
     }
 
-    /// alpha premultiply implemented with f64 precision and rounding to nearest int
-    fn multiply_color_channels_u8_precise(c: u8, a: u8) -> u8 {
-        (c as f64 * a as f64 / 255f64).round() as u8
-    }
-
     /// make sure our alpha premultiplication always rounds to the nearest u8
     #[test]
     fn premultiply_alpha_rounding() {
@@ -371,7 +401,7 @@ mod test_pixel_format {
         // what's important here is to contrive c*a/255 for results that will round in different ways while avoiding an exhaustive test, as that'd be slow
         for c in 0..=255 {
             for a in [0, 1, 2, 3, 4, 20, 30, 40, 50, 60, 61, 62, 63, 64, 77, 127, 128, 254, 255] {
-                let precise_result = multiply_color_channels_u8_precise(c, a);
+                let precise_result = _multiply_color_channels_u8_precise(c, a);
                 let actual_result = multiply_color_channels_u8(c, a);
                 assert_eq!(actual_result, precise_result, "mismatch for c={c} a={a}")
             }
@@ -424,34 +454,6 @@ mod test_rectangle_center {
 mod test_color_picker {
     use super::*;
 
-    /// see https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae
-    /// this is a HSV -> RGB conversion
-    fn hsv_to_argb_precise(hue: u8, saturation: u8, value: u8) -> u32 {
-        const HUE_RATIO: f64 = 360.0 / 255.0;
-        let hue = hue as f64 * HUE_RATIO;
-        let saturation = saturation as f64 / 255.0;
-        let value = value as f64 / 255.0;
-
-        let hue_over_60 = hue / 60.0;
-        let chroma = value * saturation;
-        let intermediate_color = chroma * (1.0 - (hue_over_60 % 2.0 - 1.0).abs());
-
-        let [r, g, b] = match hue_over_60 {
-            h if h < 1.0 => [chroma, intermediate_color, 0.0],
-            h if h < 2.0 => [intermediate_color, chroma, 0.0],
-            h if h < 3.0 => [0.0, chroma, intermediate_color],
-            h if h < 4.0 => [0.0, intermediate_color, chroma],
-            h if h < 5.0 => [intermediate_color, 0.0, chroma],
-            _ => [chroma, 0.0, intermediate_color],
-        };
-
-        let r = (r * 255.0).round() as u8;
-        let g = (g * 255.0).round() as u8;
-        let b = (b * 255.0).round() as u8;
-
-        u32::from_le_bytes([b, g, r, 255])
-    }
-
     fn color_error(actual: u32, expected: u32) -> f64 {
         if actual == expected {
             return 0.0;
@@ -482,7 +484,7 @@ mod test_color_picker {
 
         for hue in 0..=255 {
             let actual_argb = hue_value_to_argb(hue, 255);
-            let expected_argb = hsv_to_argb_precise(hue, 255, 255);
+            let expected_argb = _hsv_to_argb_precise(hue, 255, 255);
             let error = color_error(actual_argb, expected_argb);
             assert!(error <= max_error, "precise and optimized hv->argb differ: @ hue {}, {:08X} != {:08X}, error={}", hue, actual_argb, expected_argb, error);
         }
@@ -494,7 +496,7 @@ mod test_color_picker {
 
         for hue in 0..=255 {
             let actual_argb = hue_alpha_to_argb(hue, 255);
-            let expected_argb = hsv_to_argb_precise(hue, 255, 255);
+            let expected_argb = _hsv_to_argb_precise(hue, 255, 255);
             let error = color_error(actual_argb, expected_argb);
             assert!(error <= max_error, "precise and optimized ha->argb differ: @ hue {}, {:08X} != {:08X}, error={}", hue, actual_argb, expected_argb, error);
         }
@@ -506,7 +508,7 @@ mod test_color_picker {
 
         for value in 0..=255 {
             let actual_argb = hue_value_to_argb(255, value);
-            let expected_argb = hsv_to_argb_precise(255, 255, value);
+            let expected_argb = _hsv_to_argb_precise(255, 255, value);
             let error = color_error(actual_argb, expected_argb);
             assert!(error <= max_error, "precise and optimized hv->argb differ: @ value {}, {:08X} != {:08X}, error={}", value, actual_argb, expected_argb, error);
         }
