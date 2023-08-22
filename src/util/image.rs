@@ -59,7 +59,7 @@ pub fn draw_color_picker_optimized(buffer: &mut [u32]) {
             // write six pixels at once
             buffer[row_offset + SECTION_0 + column_offset] = u32::from_le_bytes([0, ramp_up_times_value, value, 255]);
             buffer[row_offset + SECTION_1 + column_offset] = u32::from_le_bytes([0, value, ramp_down_times_value, 255]);
-            buffer[row_offset + SECTION_2 + column_offset] = u32::from_le_bytes([ramp_up_times_value, value, 0, 255]); // only supposed to be 42 wide, but we just overwrite it with the next section
+            buffer[row_offset + SECTION_2 + column_offset] = u32::from_le_bytes([ramp_up_times_value, value, 0, 255]);
             buffer[row_offset + SECTION_3 + column_offset] = u32::from_le_bytes([value, ramp_down_times_value, 0, 255]);
             buffer[row_offset + SECTION_4 + column_offset] = u32::from_le_bytes([value, 0, ramp_up_times_value, 255]);
             buffer[row_offset + SECTION_5 + column_offset] = u32::from_le_bytes([ramp_down_times_value, 0, value, 255]);
@@ -69,10 +69,6 @@ pub fn draw_color_picker_optimized(buffer: &mut [u32]) {
         }
         value = value.wrapping_sub(1);
     }
-
-    // six sections:
-    // ranges: 0..43, 43..86, 86..128, 128..171, 171..214, 214..256
-    // sizes: 43, 43, 42, 43, 43, 42
 }
 
 #[inline(always)]
