@@ -5,17 +5,19 @@
 //! Relating to the settings file loaded on app start and persisted on app close
 
 use std::{fs, io};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::window::Window;
 
-use crate::{CONFIG_PATH, debug_println, show_warning};
+use simple_crosshair_overlay::debug_println;
+use simple_crosshair_overlay::util::image::{self, Image};
+use simple_crosshair_overlay::util::numeric::fps_to_tick_interval;
+
+use crate::{CONFIG_PATH, show_warning};
 use crate::hotkey::KeyBindings;
-use crate::util::image::{self, Image};
-use crate::util::numeric::fps_to_tick_interval;
 
 const DEFAULT_OFFSET_X: i32 = 0;
 const DEFAULT_OFFSET_Y: i32 = 0;
@@ -198,14 +200,24 @@ impl Settings {
 
     pub fn load() -> io::Result<Settings> {
         fs::create_dir_all(CONFIG_PATH.as_path().parent().unwrap())?;
-        fs::read_to_string(CONFIG_PATH.as_path())
+        Settings::load_from_path(CONFIG_PATH.as_path())
+    }
+
+    #[inline(always)]
+    fn load_from_path<T>(path: T) -> io::Result<Settings> where T: AsRef<Path> {
+        fs::read_to_string(path)
             .and_then(|string| toml::from_str::<PersistedSettings>(&string).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e)))
             .map(|settings| settings.load())
     }
 
     pub fn save(&self) -> Result<(), String> {
+        self.save_to_path(CONFIG_PATH.as_path())
+    }
+
+    #[inline(always)]
+    fn save_to_path<T>(&self, path: T) -> Result<(), String> where T: AsRef<Path> {
         let serialized_config = toml::to_string(&self.persisted).expect("failed to serialize settings");
-        fs::write(CONFIG_PATH.as_path(), serialized_config).map_err(|e| format!("{e:?}"))
+        fs::write(path, serialized_config).map_err(|e| format!("{e:?}"))
     }
 
     pub fn set_window_position(&mut self, window: &Window) {
@@ -294,5 +306,44 @@ impl<T> From<&Option<T>> for RenderMode where T: AsRef<Image> {
         } else {
             RenderMode::Crosshair
         }
+    }
+}
+
+#[cfg(test)]
+mod test_config_load {
+    use super::*;
+
+    /// typical config
+    #[test]
+    fn test_load_settings() {
+        Settings::load_from_path("tests/resources/test_config.toml").unwrap();
+    }
+
+    /// config with an image set
+    #[test]
+    fn test_load_settings_with_image() {
+        Settings::load_from_path("tests/resources/test_config_image.toml").unwrap();
+    }
+
+    /// config with minimum possible values set
+    #[test]
+    fn test_load_settings_old() {
+        Settings::load_from_path("tests/resources/test_config_old.toml").unwrap();
+    }
+
+    /// load a PNG into a config
+    #[test]
+    fn test_load_png() {
+        let mut settings = Settings::load_from_path("tests/resources/test_config.toml").unwrap();
+        settings.load_png("tests/resources/test.png".into()).unwrap();
+    }
+
+    /// save config to disk
+    #[test]
+    fn test_save_config() {
+        let settings = Settings::load_from_path("tests/resources/test_config.toml").unwrap();
+        let path = "tests/resources/DELETE_ME.toml";
+        settings.save_to_path(path).expect("save failed");
+        fs::remove_file(path).expect("cleanup failed");
     }
 }

@@ -1,5 +1,4 @@
 //! Color picker benchmarks.
-//! Run with `cargo bench --features "benchmarking"`
 
 use criterion::{criterion_group, criterion_main, Criterion, BatchSize, black_box};
 use simple_crosshair_overlay::util::image;

@@ -1,0 +1,19 @@
+window_dx = 0
+window_dy = 0
+window_width = 16
+window_height = 16
+color = "FFFF0005"
+fps = 60
+monitor = 1
+
+[key_bindings]
+up = ["Up"]
+down = ["Down"]
+left = ["Left"]
+right = ["Right"]
+cycle_monitor = ["LControl", "M"]
+scale_increase = ["PageUp"]
+scale_decrease = ["PageDown"]
+toggle_hidden = ["LControl", "H"]
+toggle_adjust = ["LControl", "J"]
+toggle_color_picker = ["LControl", "K"]

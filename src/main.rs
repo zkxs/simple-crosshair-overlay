@@ -21,14 +21,15 @@ use winit::event::{ElementState, Event, MouseButton, WindowEvent};
 use winit::event_loop::EventLoop;
 use winit::window::{CursorGrabMode, CursorIcon, Window, WindowBuilder, WindowLevel};
 
+use simple_crosshair_overlay::debug_println;
+use simple_crosshair_overlay::util::image;
+
 use crate::hotkey::HotkeyManager;
 use crate::settings::{RenderMode, Settings};
-use crate::util::image;
 
 mod settings;
 mod custom_serializer;
 mod hotkey;
-mod util;
 mod platform;
 
 static ICON_TOOLTIP: &str = "Simple Crosshair Overlay";

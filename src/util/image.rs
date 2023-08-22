@@ -239,7 +239,7 @@ pub fn multiply_color_channels_u8(a: u8, b: u8) -> u8 {
 }
 
 /// load a png file into an in-memory image
-pub fn load_png(path: &Path) -> io::Result<Box<Image>> {
+pub fn load_png<T>(path: T) -> io::Result<Box<Image>> where T: AsRef<Path> {
     let file = File::open(path)?;
     let decoder = png::Decoder::new(file);
     let mut reader = decoder.read_info()?;
@@ -527,5 +527,15 @@ mod test_color_picker {
         _draw_color_picker_optimized(&mut actual_buffer);
 
         assert_eq!(actual_buffer, expected_buffer, "naive and optimized color picker draws differ");
+    }
+}
+
+#[cfg(test)]
+mod test_png {
+    use super::*;
+
+    #[test]
+    fn test_load_png() {
+        load_png("tests/resources/test.png").unwrap();
     }
 }
