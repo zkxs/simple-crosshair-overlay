@@ -8,11 +8,11 @@ fn bench_color_picker(c: &mut Criterion) {
     let mut group = c.benchmark_group("Color Picker Implementations");
 
     group.bench_function("Naive", |bencher| {
-        bencher.iter_batched_ref(|| vec![0; 256 * 256], |buffer| image::draw_color_picker(black_box(buffer.as_mut_slice())), BatchSize::SmallInput)
+        bencher.iter_batched_ref(|| vec![0; 256 * 256], |buffer| image::_draw_color_picker_naive(black_box(buffer.as_mut_slice())), BatchSize::SmallInput)
     });
 
     group.bench_function("Optimized", |bencher| {
-        bencher.iter_batched_ref(|| vec![0; 252 * 252], |buffer| image::_draw_color_picker_optimized(black_box(buffer.as_mut_slice())), BatchSize::SmallInput)
+        bencher.iter_batched_ref(|| vec![0; 252 * 252], |buffer| image::draw_color_picker_optimized(black_box(buffer.as_mut_slice())), BatchSize::SmallInput)
     });
 
     group.finish();

@@ -22,23 +22,21 @@ pub struct Image {
     pub data: Vec<u32>,
 }
 
+const COLOR_PICKER_NUM_SECTIONS: u8 = 6;
+/// floor(256/6)
+const COLOR_PICKER_SECTION_WIDTH: usize = 42;
 /// side-length of the color picker box
-pub const COLOR_PICKER_SIZE: usize = 256;
+pub const COLOR_PICKER_SIZE: usize = COLOR_PICKER_SECTION_WIDTH * (COLOR_PICKER_NUM_SECTIONS as usize);
 
 #[inline(always)]
 pub fn draw_color_picker(buffer: &mut [u32]) {
-    draw_color_picker_naive(buffer)
+    draw_color_picker_optimized(buffer)
 }
 
 #[inline(always)]
-pub fn _draw_color_picker_optimized(buffer: &mut [u32]) {
-    const COLOR_PICKER_NUM_SECTIONS: u8 = 6;
-    /// floor(256/6)
-    const COLOR_PICKER_SECTION_WIDTH: usize = 42;
-    pub const COLOR_PICKER_SIZE: usize = COLOR_PICKER_SECTION_WIDTH * (COLOR_PICKER_NUM_SECTIONS as usize);
-
-    const CBUFFER_SIZE: usize = COLOR_PICKER_SIZE * COLOR_PICKER_SIZE;
-    debug_assert_eq!(buffer.len(), CBUFFER_SIZE, "draw_color_picker() passed buffer of wrong size");
+pub fn draw_color_picker_optimized(buffer: &mut [u32]) {
+    const BUFFER_SIZE: usize = COLOR_PICKER_SIZE * COLOR_PICKER_SIZE;
+    debug_assert_eq!(buffer.len(), BUFFER_SIZE, "draw_color_picker() passed buffer of wrong size");
     const MAX_VALUE: u8 = 255;
 
     const SECTION_0: usize = 0;
@@ -78,7 +76,7 @@ pub fn _draw_color_picker_optimized(buffer: &mut [u32]) {
 }
 
 #[inline(always)]
-fn draw_color_picker_naive(buffer: &mut [u32]) {
+pub fn _draw_color_picker_naive(buffer: &mut [u32]) {
     const EXPECTED_SIZE: usize = 256;
     const BUFFER_SIZE: usize = EXPECTED_SIZE * EXPECTED_SIZE;
     debug_assert_eq!(buffer.len(), BUFFER_SIZE, "draw_color_picker() passed buffer of wrong size");
@@ -100,12 +98,9 @@ fn hue_value_color_from_coordinates(x: usize, y: usize) -> u32 {
 /// calculate an ARGB color from picked coordinates from a color picker
 /// this color does NOT have premultiplied alpha
 pub fn hue_alpha_color_from_coordinates(x: usize, y: usize, width: usize, height: usize) -> u32 {
-    //TODO: this doesn't work for the 252x252 optimized version of the color picker
-    const EXPECTED_SIZE: usize = 256;
-    debug_assert_eq!(width, EXPECTED_SIZE);
-    debug_assert_eq!(height, EXPECTED_SIZE);
-
-    hue_alpha_to_argb(x as u8, 255 - (y as u8))
+    debug_assert_eq!(width, COLOR_PICKER_SIZE);
+    debug_assert_eq!(height, COLOR_PICKER_SIZE);
+    x_y_to_argb_252(x as u8, y as u8)
 }
 
 /// see https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae
@@ -157,6 +152,33 @@ pub fn hue_alpha_to_argb(hue: u8, alpha: u8) -> u32 {
     };
 
     u32::from_le_bytes([b, g, r, alpha])
+}
+
+/// Given color picker coordinates, get a crosshair color
+fn x_y_to_argb_252(x: u8, y: u8) -> u32 {
+    const MAX_COLOR: u8 = 255;
+
+    // we need the ceiling of each of the 5 boundaries between the 6 sections
+    const SECTION_0: u8 = 0;
+    const SECTION_1: u8 = SECTION_0 + COLOR_PICKER_SECTION_WIDTH as u8;
+    const SECTION_2: u8 = SECTION_1 + COLOR_PICKER_SECTION_WIDTH as u8;
+    const SECTION_3: u8 = SECTION_2 + COLOR_PICKER_SECTION_WIDTH as u8;
+    const SECTION_4: u8 = SECTION_3 + COLOR_PICKER_SECTION_WIDTH as u8;
+    const SECTION_5: u8 = SECTION_4 + COLOR_PICKER_SECTION_WIDTH as u8;
+
+    // convert the hue into a nice sawtooth line going from 0->255 in each of the 6 sections
+    let raw_hue = x.wrapping_mul(6);
+
+    let [r, g, b] = match x {
+        hue if hue < SECTION_1 => [MAX_COLOR, raw_hue, 0],
+        hue if hue < SECTION_2 => [MAX_COLOR - raw_hue, MAX_COLOR, 0],
+        hue if hue < SECTION_3 => [0, MAX_COLOR, raw_hue],
+        hue if hue < SECTION_4 => [0, MAX_COLOR - raw_hue, MAX_COLOR],
+        hue if hue < SECTION_5 => [raw_hue, 0, MAX_COLOR],
+        _ => [MAX_COLOR, 0, MAX_COLOR - raw_hue],
+    };
+
+    u32::from_le_bytes([b, g, r, MAX_COLOR - y])
 }
 
 /// Convert BE RGBA to LE ARGB, premultiplying alpha where required by the target platform.
@@ -514,19 +536,91 @@ mod test_color_picker {
         }
     }
 
-    //TODO: test this once it's done
-    //#[test]
-    fn _test_optimized_color_picker() {
-        const BUFFER_DIMENSION: usize = 256;
+    /// make sure the optimized color picker behaves generally as expected
+    #[test]
+    fn test_optimized_color_picker() {
+        const BUFFER_DIMENSION: usize = 252;
         const BUFFER_SIZE: usize = BUFFER_DIMENSION * BUFFER_DIMENSION;
 
-        let mut actual_buffer = vec![0; BUFFER_SIZE];
-        let mut expected_buffer = vec![0; BUFFER_SIZE];
+        let mut buffer = vec![0; BUFFER_SIZE];
+        draw_color_picker_optimized(&mut buffer);
 
-        draw_color_picker_naive(&mut expected_buffer);
-        _draw_color_picker_optimized(&mut actual_buffer);
+        // make sure various pixels are nonzero
+        assert_ne!(buffer[0], 0, "first pixel should be set");
+        assert_ne!(buffer[buffer.len() - 1], 0, "last pixel should be set");
 
-        assert_eq!(actual_buffer, expected_buffer, "naive and optimized color picker draws differ");
+        check_picked_color(&buffer, 0, 0);
+        check_picked_color(&buffer, 0, 252 - 1);
+        check_picked_color(&buffer, 252 - 1, 0);
+        check_picked_color(&buffer, 252 - 1, 252 - 1);
+    }
+
+    #[derive(Debug)]
+    struct HsvColor {
+        h: f64,
+        s: f64,
+        v: f64,
+    }
+
+    impl PartialEq<Self> for HsvColor {
+        fn eq(&self, other: &Self) -> bool {
+            // values range from 0 to 1, but ultimately they come from u8 precision, so allow only a u8's worth of rounding error
+            const MAX_ERROR: f64 = 0.49 / 255.0;
+            (self.h - other.h).abs() < MAX_ERROR
+                && (self.s - other.s).abs() < MAX_ERROR
+                && (self.v - other.v).abs() < MAX_ERROR
+        }
+    }
+
+    impl Eq for HsvColor {}
+
+    fn rgb_to_hsv_precise(color: u32) -> HsvColor {
+        const MAX_COLOR: f64 = 255.0;
+        let [b, g, r, _a] = color.to_le_bytes();
+        let r = r as f64 / MAX_COLOR;
+        let g = g as f64 / MAX_COLOR;
+        let b = b as f64 / MAX_COLOR;
+
+        let x_max = r.max(g.max(b)); // value
+        let x_min = r.min(g.min(b));
+        let c = x_max - x_min;
+
+        let h = if c == 0.0 {
+            0.0
+        } else if x_max == r {
+            (((g - b) / c) % 6.0) / 60.0
+        } else if x_max == g {
+            (((b - r) / c) + 2.0) / 60.0
+        } else { // x_max must therefore equal b
+            (((r - g) / c) + 4.0) / 60.0
+        };
+
+        let s = if x_max == 0.0 {
+            0.0
+        } else {
+            c / x_max
+        };
+
+        HsvColor {
+            h,
+            s,
+            v: x_max,
+        }
+    }
+
+    fn check_picked_color(buffer: &[u32], x: usize, y: usize) {
+        const BUFFER_DIMENSION: usize = 252;
+
+        let picker_color = rgb_to_hsv_precise(buffer[y * BUFFER_DIMENSION + x]);
+        let HsvColor { h, s: _, v } = picker_color;
+        let expected_color = HsvColor { h, s: 1.0, v: 1.0 };
+        let expected_alpha = (v * 255.0).round() as u8;
+
+        let calculated_color = x_y_to_argb_252(x as u8, y as u8);
+        let actual_color = rgb_to_hsv_precise(calculated_color);
+        let [_, _, _, actual_alpha] = calculated_color.to_le_bytes();
+        assert_eq!(expected_color, actual_color, "color did not match at ({x}, {y})");
+        assert_eq!(expected_alpha, actual_alpha, "alpha did not match at ({x}, {y})");
     }
 }
 
