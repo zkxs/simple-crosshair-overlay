@@ -1,3 +1,7 @@
+// This file is part of simple-crosshair-overlay and is licenced under the GNU GPL v3.0.
+// See LICENSE file for full text.
+// Copyright © 2023 Michael Ripley
+
 //! Platform-agnostic implementations.
 //! This is only in the module tree on targets lacking a platform-specific implementation.
 //! On platforms that do not support the operation they will no-op and indicate that the action failed.

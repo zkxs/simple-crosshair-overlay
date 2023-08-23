@@ -8,11 +8,11 @@ use std::{fs, io};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use debug_print::debug_println;
 use serde::{Deserialize, Serialize};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::window::Window;
 
-use simple_crosshair_overlay::debug_println;
 use simple_crosshair_overlay::util::image::{self, Image};
 use simple_crosshair_overlay::util::numeric::fps_to_tick_interval;
 

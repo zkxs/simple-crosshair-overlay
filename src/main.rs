@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::Mutex;
 
+use debug_print::debug_println;
 use device_query::{DeviceQuery, DeviceState};
 use lazy_static::lazy_static;
 use native_dialog::{FileDialog, MessageDialog, MessageType};
@@ -21,7 +22,6 @@ use winit::event::{ElementState, Event, MouseButton, WindowEvent};
 use winit::event_loop::EventLoop;
 use winit::window::{CursorGrabMode, CursorIcon, Window, WindowBuilder, WindowLevel};
 
-use simple_crosshair_overlay::debug_println;
 use simple_crosshair_overlay::util::image;
 
 use crate::hotkey::HotkeyManager;
