@@ -658,6 +658,6 @@ mod test_png {
 
     #[test]
     fn test_load_png() {
-        load_png("tests/resources/test.png").unwrap();
+        load_png("../tests/resources/test.png").unwrap();
     }
 }
