@@ -6,7 +6,7 @@ This document contains some common commands that I need to remember for package 
 
 1. Check for outdated dependencies: `cargo outdated --workspace --exclude gtk`
    - note that the gtk dependency breaks cargo-outdated on Windows for some reason.
-2. Update dependencies: `cargo update --workspace`
+2. Update dependencies: `cargo update`
 
 ## Tests
 
