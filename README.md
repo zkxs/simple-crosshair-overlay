@@ -75,8 +75,6 @@ Hotkeys cannot currently be changed in-application. To edit your hotkeys, do the
 1. [Install Rust](https://www.rust-lang.org/tools/install)
 2. Clone the project
 3. `cargo build --release`
-   or alternatively for a slightly smaller binary, `cargo +nightly build -Z build-std=std --release`.
-   See [min-sized-rust](https://github.com/johnthagen/min-sized-rust) for an explanation.
 
 ## License
 

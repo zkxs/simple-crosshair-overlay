@@ -19,6 +19,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          arguments: --workspace
   build:
     if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/master' # only run for pushes to tags or master
     strategy:
@@ -87,10 +89,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev
       - name: Check
-        run: cargo check --target ${{ matrix.target.triple }}
+        run: cargo check --workspace --target ${{ matrix.target.triple }}
       - name: Test
         if: matrix.target.runner-can-execute
-        run: cargo test --target ${{ matrix.target.triple }}
+        run: cargo test --workspace --target ${{ matrix.target.triple }}
       - name: Build
         run: cargo +nightly build -Z build-std=std --release --target ${{ matrix.target.triple }}
       - name: Upload workflow artifact

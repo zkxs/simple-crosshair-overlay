@@ -6,6 +6,8 @@ use std::{env, fs, io};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
+use crosshair_lib::util::image::generate_icon_rgba;
+
 /// Tray icon dimension. [As per Microsoft](https://learn.microsoft.com/en-us/windows/win32/shell/notification-area?redirectedfrom=MSDN#add-a-notification-icon):
 ///
 /// > An application should provide both a 16x16 pixel icon and a 32x32 icon
@@ -109,35 +111,4 @@ fn create_windows_app_icon_file(path: &Path) -> io::Result<()> {
 
     let file = fs::File::create(path)?;
     icon_dir.write(file)
-}
-
-// TODO: stop doing absurd buffer math to generate icons and just freaking bake an SVG
-/// Generate a simple icon. Just a red circle with a little green/blue gradient stuff going on to spice it up.
-fn generate_icon_rgba(size: u32) -> Vec<u8> {
-    // some silly math to make a colored circle
-    let icon_size_squared = size * size;
-    let mut icon_rgba: Vec<u8> = Vec::with_capacity((icon_size_squared * 4) as usize);
-    #[allow(clippy::uninit_vec)]
-    unsafe {
-        // there is no requirement I build my image in a zeroed buffer.
-        icon_rgba.set_len(icon_rgba.capacity());
-    }
-    for x in 0..size {
-        for y in 0..size {
-            let x_term = ((x as i32) * 2 - (size as i32) + 1) / 2;
-            let y_term = ((y as i32) * 2 - (size as i32) + 1) / 2;
-            let distance_squared = x_term * x_term + y_term * y_term;
-            let mask: u8 = if distance_squared < icon_size_squared as i32 / 4 {
-                0xFF
-            } else {
-                0x00
-            };
-            let icon_offset: usize = (x as usize * size as usize + y as usize) * 4;
-            icon_rgba[icon_offset] = mask; // set red
-            icon_rgba[icon_offset + 1] = (x * 128 / size) as u8 & mask; // set green
-            icon_rgba[icon_offset + 2] = (y * 128 / size) as u8 & mask; // set blue
-            icon_rgba[icon_offset + 3] = mask; // set alpha
-        }
-    }
-    icon_rgba
 }

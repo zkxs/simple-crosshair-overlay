@@ -1,0 +1,21 @@
+[package]
+name = "crosshair-lib"
+description = "Internal utilities used by simple-crosshair-overlay"
+publish = false
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+benchmarking = []
+
+[dependencies]
+png = "0.17"
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "color_picker"
+harness = false

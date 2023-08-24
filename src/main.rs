@@ -22,7 +22,7 @@ use winit::event::{ElementState, Event, MouseButton, WindowEvent};
 use winit::event_loop::EventLoop;
 use winit::window::{CursorGrabMode, CursorIcon, Window, WindowBuilder, WindowLevel};
 
-use simple_crosshair_overlay::util::image;
+use crosshair_lib::util::image;
 
 use crate::hotkey::HotkeyManager;
 use crate::settings::{RenderMode, Settings};

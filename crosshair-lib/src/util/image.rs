@@ -22,6 +22,38 @@ pub struct Image {
     pub data: Vec<u32>,
 }
 
+// TODO: stop doing absurd buffer math to generate icons and just freaking bake an SVG
+/// Generate a simple icon. Just a red circle with a little green/blue gradient stuff going on to spice it up.
+/// This outputs series of 8-bit color depth RGBA values.
+pub fn generate_icon_rgba(size: u32) -> Vec<u8> {
+    // some silly math to make a colored circle
+    let icon_size_squared = size * size;
+    let mut icon_rgba: Vec<u8> = Vec::with_capacity((icon_size_squared * 4) as usize);
+    #[allow(clippy::uninit_vec)]
+    unsafe {
+        // there is no requirement I build my image in a zeroed buffer.
+        icon_rgba.set_len(icon_rgba.capacity());
+    }
+    for x in 0..size {
+        for y in 0..size {
+            let x_term = ((x as i32) * 2 - (size as i32) + 1) / 2;
+            let y_term = ((y as i32) * 2 - (size as i32) + 1) / 2;
+            let distance_squared = x_term * x_term + y_term * y_term;
+            let mask: u8 = if distance_squared < icon_size_squared as i32 / 4 {
+                0xFF
+            } else {
+                0x00
+            };
+            let icon_offset: usize = (x as usize * size as usize + y as usize) * 4;
+            icon_rgba[icon_offset] = mask; // set red
+            icon_rgba[icon_offset + 1] = (x * 128 / size) as u8 & mask; // set green
+            icon_rgba[icon_offset + 2] = (y * 128 / size) as u8 & mask; // set blue
+            icon_rgba[icon_offset + 3] = mask; // set alpha
+        }
+    }
+    icon_rgba
+}
+
 const COLOR_PICKER_NUM_SECTIONS: u8 = 6;
 /// floor(256/6)
 const COLOR_PICKER_SECTION_WIDTH: usize = 42;

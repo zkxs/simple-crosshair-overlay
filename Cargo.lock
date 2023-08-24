@@ -502,6 +502,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "crosshair-lib"
+version = "1.0.1"
+dependencies = [
+ "criterion",
+ "png",
+]
+
+[[package]]
 name = "cty"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1954,7 +1962,7 @@ checksum = "d66dc143e6b11c1eddc06d5c423cfc97062865baf299914ab64caa38182078fe"
 name = "simple-crosshair-overlay"
 version = "1.0.1"
 dependencies = [
- "criterion",
+ "crosshair-lib",
  "debug_print",
  "device_query",
  "directories",
@@ -1962,7 +1970,6 @@ dependencies = [
  "ico",
  "lazy_static",
  "native-dialog",
- "png",
  "serde",
  "softbuffer",
  "toml 0.7.6",

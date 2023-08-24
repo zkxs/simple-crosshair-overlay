@@ -4,9 +4,9 @@
 
 //! Color picker benchmarks.
 
-use criterion::{criterion_group, criterion_main, Criterion, BatchSize, black_box};
-use simple_crosshair_overlay::util::image;
+use criterion::{BatchSize, black_box, Criterion, criterion_group, criterion_main};
 
+use crosshair_lib::util::image;
 
 fn bench_color_picker(c: &mut Criterion) {
     let mut group = c.benchmark_group("Color Picker Implementations");
