@@ -1,3 +1,9 @@
+// This file is part of simple-crosshair-overlay and is licenced under the GNU GPL v3.0.
+// See LICENSE file for full text.
+// Copyright © 2023 Michael Ripley
+
+//! Benchmarks for the application icon generation
+
 use std::time::Duration;
 use criterion::{BenchmarkId, Criterion};
 
