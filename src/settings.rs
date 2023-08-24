@@ -342,8 +342,11 @@ mod test_config_load {
     #[test]
     fn test_save_config() {
         let settings = Settings::load_from_path("tests/resources/test_config.toml").unwrap();
-        let path = "tests/resources/DELETE_ME.toml";
-        settings.save_to_path(path).expect("save failed");
-        fs::remove_file(path).expect("cleanup failed");
+
+        let mut path = std::env::temp_dir();
+        path.push("DELETEME_simple-crosshair-overlay-test-config.toml");
+
+        settings.save_to_path(&path).expect("save failed");
+        fs::remove_file(&path).expect("cleanup failed");
     }
 }

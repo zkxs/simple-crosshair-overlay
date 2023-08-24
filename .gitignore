@@ -1,6 +1,5 @@
 # Build artifacts
 /target
-/tests/resources/DELETE_ME.toml
 
 # IDE: IntelliJ
 *.iml
