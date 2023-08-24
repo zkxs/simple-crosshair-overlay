@@ -4,11 +4,11 @@
 
 //! Color picker benchmarks.
 
-use criterion::{BatchSize, black_box, Criterion, criterion_group, criterion_main};
+use criterion::{BatchSize, black_box, Criterion};
 
 use crosshair_lib::util::image;
 
-fn bench_color_picker(c: &mut Criterion) {
+pub fn bench_color_picker(c: &mut Criterion) {
     let mut group = c.benchmark_group("Color Picker Implementations");
 
     group.bench_function("Naive", |bencher| {
@@ -22,7 +22,7 @@ fn bench_color_picker(c: &mut Criterion) {
     group.finish();
 }
 
-fn bench_hsv_argb(c: &mut Criterion) {
+pub fn bench_hsv_argb(c: &mut Criterion) {
     let mut group = c.benchmark_group("HSV -> ARGB conversion implementations");
 
     group.bench_function("Precise HSV", |bencher| {
@@ -40,7 +40,7 @@ fn bench_hsv_argb(c: &mut Criterion) {
     group.finish();
 }
 
-fn bench_multiply_color_channel(c: &mut Criterion) {
+pub fn bench_multiply_color_channel(c: &mut Criterion) {
     let mut group = c.benchmark_group("Color channel multiply implementations");
 
     group.bench_function("Precise", |bencher| {
@@ -53,6 +53,3 @@ fn bench_multiply_color_channel(c: &mut Criterion) {
 
     group.finish();
 }
-
-criterion_group!(benches, bench_color_picker, bench_hsv_argb, bench_multiply_color_channel);
-criterion_main!(benches);

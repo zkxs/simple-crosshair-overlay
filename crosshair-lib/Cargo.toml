@@ -17,5 +17,5 @@ png = "0.17"
 criterion = "0.5"
 
 [[bench]]
-name = "color_picker"
+name = "benches"
 harness = false
