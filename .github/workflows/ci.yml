@@ -7,13 +7,14 @@ on:
   pull_request:
     branches:
       - master # run for pull requests that target master
-    paths:
-      - .github/workflows/ci.yml
-      - Cargo.lock
-      - Cargo.toml
-      - deny.toml
-      - build.rs
-      - src/**
+    paths-ignore: # ignore files that can't alter build output
+      - '**.md'
+      - .github/dependabot.yml
+      - .github/workflows/build.yml
+      - .github/workflows/publish.yml
+      - .gitignore
+      - LICENSE
+      - screenshots/**
 jobs:
   cargo-deny:
     runs-on: ubuntu-latest

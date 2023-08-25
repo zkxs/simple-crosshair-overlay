@@ -5,13 +5,14 @@
 name: Build
 on:
   push:
-    paths:
-      - .github/workflows/build.yml
-      - Cargo.lock
-      - Cargo.toml
-      - deny.toml
-      - build.rs
-      - src/**
+    paths-ignore: # ignore files that can't alter build output
+      - '**.md'
+      - .github/dependabot.yml
+      - .github/workflows/ci.yml
+      - .github/workflows/publish.yml
+      - .gitignore
+      - LICENSE
+      - screenshots/**
 jobs:
   cargo-deny:
     if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/master' # only run for pushes to tags or master
