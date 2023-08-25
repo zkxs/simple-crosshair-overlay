@@ -12,6 +12,12 @@ use png::ColorType;
 
 use crate::util::numeric::{DivCeil, DivFloor};
 
+#[cfg(any(test, feature = "benchmarking"))]
+pub mod precise;
+
+#[cfg(any(test, feature = "benchmarking"))]
+pub mod naive;
+
 /// in-memory image representation
 pub struct Image {
     /// image width
@@ -62,11 +68,6 @@ pub const COLOR_PICKER_SIZE: usize = COLOR_PICKER_SECTION_WIDTH * (COLOR_PICKER_
 
 #[inline(always)]
 pub fn draw_color_picker(buffer: &mut [u32]) {
-    draw_color_picker_optimized(buffer)
-}
-
-#[inline(always)]
-pub fn draw_color_picker_optimized(buffer: &mut [u32]) {
     const BUFFER_SIZE: usize = COLOR_PICKER_SIZE * COLOR_PICKER_SIZE;
     debug_assert_eq!(buffer.len(), BUFFER_SIZE, "draw_color_picker() passed buffer of wrong size");
     const MAX_VALUE: u8 = 255;
@@ -103,27 +104,7 @@ pub fn draw_color_picker_optimized(buffer: &mut [u32]) {
     }
 }
 
-#[inline(always)]
-pub fn _draw_color_picker_naive(buffer: &mut [u32]) {
-    const EXPECTED_SIZE: usize = 256;
-    const BUFFER_SIZE: usize = EXPECTED_SIZE * EXPECTED_SIZE;
-    debug_assert_eq!(buffer.len(), BUFFER_SIZE, "draw_color_picker() passed buffer of wrong size");
-
-    for y in 0..EXPECTED_SIZE {
-        for x in 0..EXPECTED_SIZE {
-            buffer[y * EXPECTED_SIZE + x] = hue_value_color_from_coordinates(x, y);
-        }
-    }
-}
-
-/// calculate an ARGB color from picked coordinates from a color picker.
-/// this color does NOT have premultiplied alpha.
-/// `x` and `y` must be within 0..255
-fn hue_value_color_from_coordinates(x: usize, y: usize) -> u32 {
-    hue_value_to_argb(x as u8, 255 - (y as u8))
-}
-
-/// calculate an ARGB color from picked coordinates from a color picker
+/// calculate an ARGB color from picked coordinates from the color picker
 /// this color does NOT have premultiplied alpha
 pub fn hue_alpha_color_from_coordinates(x: usize, y: usize, width: usize, height: usize) -> u32 {
     debug_assert_eq!(width, COLOR_PICKER_SIZE);
@@ -350,41 +331,6 @@ pub fn rectangle_center(x: i32, y: i32, width: i32, height: i32) -> (i32, i32) {
     )
 }
 
-/// see https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae
-/// this is a HSV -> RGB conversion
-#[cfg(any(test, feature = "benchmarking"))]
-pub fn _hsv_to_argb_precise(hue: u8, saturation: u8, value: u8) -> u32 {
-    const HUE_RATIO: f64 = 360.0 / 255.0;
-    let hue = hue as f64 * HUE_RATIO;
-    let saturation = saturation as f64 / 255.0;
-    let value = value as f64 / 255.0;
-
-    let hue_over_60 = hue / 60.0;
-    let chroma = value * saturation;
-    let intermediate_color = chroma * (1.0 - (hue_over_60 % 2.0 - 1.0).abs());
-
-    let [r, g, b] = match hue_over_60 {
-        h if h < 1.0 => [chroma, intermediate_color, 0.0],
-        h if h < 2.0 => [intermediate_color, chroma, 0.0],
-        h if h < 3.0 => [0.0, chroma, intermediate_color],
-        h if h < 4.0 => [0.0, intermediate_color, chroma],
-        h if h < 5.0 => [intermediate_color, 0.0, chroma],
-        _ => [chroma, 0.0, intermediate_color],
-    };
-
-    let r = (r * 255.0).round() as u8;
-    let g = (g * 255.0).round() as u8;
-    let b = (b * 255.0).round() as u8;
-
-    u32::from_le_bytes([b, g, r, 255])
-}
-
-/// alpha premultiply implemented with f64 precision and rounding to nearest int
-#[cfg(any(test, feature = "benchmarking"))]
-pub fn _multiply_color_channels_u8_precise(c: u8, a: u8) -> u8 {
-    (c as f64 * a as f64 / 255f64).round() as u8
-}
-
 #[cfg(test)]
 mod test_pixel_format {
     use super::*;
@@ -451,7 +397,7 @@ mod test_pixel_format {
         // what's important here is to contrive c*a/255 for results that will round in different ways while avoiding an exhaustive test, as that'd be slow
         for c in 0..=255 {
             for a in [0, 1, 2, 3, 4, 20, 30, 40, 50, 60, 61, 62, 63, 64, 77, 127, 128, 254, 255] {
-                let precise_result = _multiply_color_channels_u8_precise(c, a);
+                let precise_result = precise::multiply_color_channels_u8(c, a);
                 let actual_result = multiply_color_channels_u8(c, a);
                 assert_eq!(actual_result, precise_result, "mismatch for c={c} a={a}")
             }
@@ -534,7 +480,7 @@ mod test_color_picker {
 
         for hue in 0..=255 {
             let actual_argb = hue_value_to_argb(hue, 255);
-            let expected_argb = _hsv_to_argb_precise(hue, 255, 255);
+            let expected_argb = precise::hsv_to_argb(hue, 255, 255);
             let error = color_error(actual_argb, expected_argb);
             assert!(error <= max_error, "precise and optimized hv->argb differ: @ hue {}, {:08X} != {:08X}, error={}", hue, actual_argb, expected_argb, error);
         }
@@ -546,7 +492,7 @@ mod test_color_picker {
 
         for hue in 0..=255 {
             let actual_argb = hue_alpha_to_argb(hue, 255);
-            let expected_argb = _hsv_to_argb_precise(hue, 255, 255);
+            let expected_argb = precise::hsv_to_argb(hue, 255, 255);
             let error = color_error(actual_argb, expected_argb);
             assert!(error <= max_error, "precise and optimized ha->argb differ: @ hue {}, {:08X} != {:08X}, error={}", hue, actual_argb, expected_argb, error);
         }
@@ -558,7 +504,7 @@ mod test_color_picker {
 
         for value in 0..=255 {
             let actual_argb = hue_value_to_argb(255, value);
-            let expected_argb = _hsv_to_argb_precise(255, 255, value);
+            let expected_argb = precise::hsv_to_argb(255, 255, value);
             let error = color_error(actual_argb, expected_argb);
             assert!(error <= max_error, "precise and optimized hv->argb differ: @ value {}, {:08X} != {:08X}, error={}", value, actual_argb, expected_argb, error);
         }
@@ -571,7 +517,7 @@ mod test_color_picker {
         const BUFFER_SIZE: usize = BUFFER_DIMENSION * BUFFER_DIMENSION;
 
         let mut buffer = vec![0; BUFFER_SIZE];
-        draw_color_picker_optimized(&mut buffer);
+        draw_color_picker(&mut buffer);
 
         // make sure various pixels are nonzero
         assert_ne!(buffer[0], 0, "first pixel should be set");
