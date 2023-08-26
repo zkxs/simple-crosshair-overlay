@@ -65,6 +65,10 @@ Hotkeys cannot currently be changed in-application. To edit your hotkeys, do the
    and exiting the program once will create it.
 2. Change hotkeys in the `key_bindings` section by referencing the Keycode values defined in [keycode.rs](src/hotkey/keycode.rs)
 
+## Notes
+
+Simple Crosshair Overlay supports 0.5 pixel alignment with the default crosshair by scaling it to an even or odd size. If this sounds nonsensical, I've written [a quick explanation of this concept](docs/crosshair-alignment.md). If you're using a custom PNG crosshair, then providing the correct even/odd size is up to you.
+
 ## Installing from Source
 
 1. [Install Rust](https://www.rust-lang.org/tools/install)
