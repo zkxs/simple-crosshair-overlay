@@ -7,6 +7,9 @@ authors = ["Michael Ripley <zkxs00@gmail.com"]
 edition = "2021"
 license = "GPL-3.0-only"
 
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+
 [package]
 name = "simple-crosshair-overlay"
 description = "A simple native crosshair overlay"
@@ -32,12 +35,11 @@ crosshair-lib = { path = "crosshair-lib" }
 tray-icon = "0.8"
 winit = "0.28"
 softbuffer = "0.3"
-serde = { version = "1", features = ["derive"] }
+serde.workspace = true
 toml = "0.7"
 directories = "5"
 lazy_static = "1"
 native-dialog = "0.6"
-device_query = "1"
 debug_print = "1"
 
 [build-dependencies]

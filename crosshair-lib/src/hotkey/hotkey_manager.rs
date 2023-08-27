@@ -10,7 +10,7 @@
 //! We care about if certain key combinations are pressed. To make this really fast, I make
 //! heavy use of bitmasks.
 
-use device_query::Keycode as DeviceQueryKeycode;
+use device_query::{DeviceQuery, DeviceState, Keycode as DeviceQueryKeycode};
 use serde::{Deserialize, Serialize};
 
 use super::Keycode;
@@ -202,6 +202,8 @@ pub struct HotkeyManager {
     movement_key_held_frames: u32,
     scale_key_held_frames: u32,
     key_buffer: KeyBuffer,
+    device_state: DeviceState,
+    current_keys: Vec<DeviceQueryKeycode>,
 }
 
 impl HotkeyManager {
@@ -213,17 +215,23 @@ impl HotkeyManager {
                 movement_key_held_frames: 0,
                 scale_key_held_frames: 0,
                 key_buffer: KeyBuffer::new(key_bindings)?,
+                device_state: DeviceState::new(),
+                current_keys: Vec::new(),
             }
         )
     }
 
+    pub fn poll_keys(&mut self) {
+        self.current_keys = self.device_state.get_keys();
+    }
+
     /// updates state with current key data
-    pub fn process_keys(&mut self, keys: &[DeviceQueryKeycode]) {
+    pub fn process_keys(&mut self) {
         self.previous_state = self.state;
 
         // calculate state
         let key_buffer: &KeyBuffer = &self.key_buffer;
-        key_buffer.update(&mut self.state, keys);
+        key_buffer.update(&mut self.state, &self.current_keys);
 
         self.movement_key_held_frames = if key_buffer.any_movement(self.state) {
             self.movement_key_held_frames + 1

@@ -7,10 +7,12 @@
 use criterion::{criterion_group, criterion_main};
 
 use color_picker::*;
+use hotkey::*;
 use icon::*;
 
 mod color_picker;
 mod icon;
+mod hotkey;
 
-criterion_group!(benches, bench_color_picker, bench_hsv_argb, bench_multiply_color_channel, bench_icon);
+criterion_group!(benches, bench_color_picker, bench_hsv_argb, bench_multiply_color_channel, bench_icon, bench_key_poll, bench_key_process);
 criterion_main!(benches);

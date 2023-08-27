@@ -506,7 +506,9 @@ name = "crosshair-lib"
 version = "1.0.1"
 dependencies = [
  "criterion",
+ "device_query",
  "png",
+ "serde",
 ]
 
 [[package]]
@@ -1964,7 +1966,6 @@ version = "1.0.1"
 dependencies = [
  "crosshair-lib",
  "debug_print",
- "device_query",
  "directories",
  "gtk",
  "ico",

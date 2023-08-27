@@ -11,7 +11,6 @@ use std::sync::mpsc;
 use std::sync::Mutex;
 
 use debug_print::debug_println;
-use device_query::{DeviceQuery, DeviceState};
 use lazy_static::lazy_static;
 use native_dialog::{FileDialog, MessageDialog, MessageType};
 use softbuffer::{Context, Surface};
@@ -22,14 +21,13 @@ use winit::event::{ElementState, Event, MouseButton, WindowEvent};
 use winit::event_loop::EventLoop;
 use winit::window::{CursorGrabMode, CursorIcon, Window, WindowBuilder, WindowLevel};
 
+use crosshair_lib::hotkey::HotkeyManager;
 use crosshair_lib::util::image;
 
-use crate::hotkey::HotkeyManager;
 use crate::settings::{RenderMode, Settings};
 
 mod settings;
 mod custom_serializer;
-mod hotkey;
 mod platform;
 
 static ICON_TOOLTIP: &str = "Simple Crosshair Overlay";
@@ -196,8 +194,6 @@ fn main() {
             }
         }).unwrap();
 
-    let device_state = DeviceState::new();
-
     // unsafe note: these three structs MUST live and die together.
     // It is highly illegal to use the context or surface after the window is dropped.
     // The context only gets used right here, so that's fine.
@@ -229,8 +225,8 @@ fn main() {
                 force_redraw = false;
             }
             Event::UserEvent(_) => {
-                let keys = device_state.get_keys();
-                hotkey_manager.process_keys(&keys);
+                hotkey_manager.poll_keys();
+                hotkey_manager.process_keys();
 
                 if menu_items.adjust_button.is_checked() {
                     if hotkey_manager.move_up() != 0 {

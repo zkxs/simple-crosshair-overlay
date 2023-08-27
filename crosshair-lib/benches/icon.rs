@@ -18,7 +18,7 @@ pub fn bench_icon(c: &mut Criterion) {
         // is that it visits every pixel in the icon. The compiler should easily be able to
         // generate branchless, vectorized assembly for this.
         group.bench_with_input(BenchmarkId::new("Naive", size), &size, |bencher, size| {
-            bencher.iter(|| image::generate_icon_rgba(*size))
+            bencher.iter_with_large_drop(|| image::generate_icon_rgba(*size))
         });
 
         // A potentially faster implementation would be to start with a zeroed buffer and only visit

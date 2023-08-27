@@ -4,7 +4,8 @@
 
 //! Color picker benchmarks.
 
-use criterion::{BatchSize, black_box, Criterion};
+use std::hint::black_box;
+use criterion::{BatchSize, Criterion};
 
 use crosshair_lib::util::image;
 

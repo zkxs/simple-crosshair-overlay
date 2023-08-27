@@ -13,11 +13,11 @@ use serde::{Deserialize, Serialize};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::window::Window;
 
+use crosshair_lib::hotkey::KeyBindings;
 use crosshair_lib::util::image::{self, Image};
 use crosshair_lib::util::numeric::fps_to_tick_interval;
 
 use crate::{CONFIG_PATH, show_warning};
-use crate::hotkey::KeyBindings;
 
 const DEFAULT_OFFSET_X: i32 = 0;
 const DEFAULT_OFFSET_Y: i32 = 0;

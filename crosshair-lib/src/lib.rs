@@ -3,3 +3,4 @@
 // Copyright © 2023 Michael Ripley
 
 pub mod util;
+pub mod hotkey;
