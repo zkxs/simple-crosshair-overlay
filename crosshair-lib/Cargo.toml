@@ -8,7 +8,8 @@ edition.workspace = true
 license.workspace = true
 
 [features]
-benchmarking = []
+benchmark = [] # used to compile reference functions only needed for benchmarking against
+slow-benchmark = [] # used to run slow benchmarks
 
 [dependencies]
 png = "0.17"

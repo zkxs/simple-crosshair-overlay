@@ -12,10 +12,10 @@ use png::ColorType;
 
 use crate::util::numeric::{DivCeil, DivFloor};
 
-#[cfg(any(test, feature = "benchmarking"))]
+#[cfg(any(test, feature = "benchmark"))]
 pub mod precise;
 
-#[cfg(any(test, feature = "benchmarking"))]
+#[cfg(any(test, feature = "benchmark"))]
 pub mod naive;
 
 /// in-memory image representation
