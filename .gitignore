@@ -4,3 +4,6 @@
 # IDE: IntelliJ
 *.iml
 .idea/
+
+# cargo-flamegraph output
+flamegraph.svg

@@ -21,6 +21,13 @@ This document contains some common commands that I need to remember for package 
 
 See [crosshair-lib/benches](crosshair-lib/benches) for details.
 
+## Profiling
+
+1. add `debug = true` to `[profile.release]`
+2. remove `strip = true` from `[profile.release]`
+3. elevate to administrator privileges
+4. `cargo flamegraph`
+
 ## Size-Optimized Build Using Nightly Rust
 
 This is how I actually build the project for releases:
