@@ -10,13 +10,13 @@
 //! We care about if certain key combinations are pressed. To make this really fast, I make
 //! heavy use of bitmasks.
 
-use device_query::{DeviceQuery, DeviceState, Keycode as DeviceQueryKeycode};
+use std::marker::PhantomData;
+
 use serde::{Deserialize, Serialize};
 
-use super::Keycode;
-use super::keycode_to_table_index;
+use crate::platform::{KeyboardState, KeycodeType};
 
-const KEYCODE_LENGTH: usize = 96;
+use super::Keycode;
 
 /// the number of bits in this mask is the number of distinct keys that can be used across all keybinds
 type Bitmask = u32;
@@ -65,8 +65,8 @@ impl Default for KeyBindings {
     }
 }
 
-struct KeyBuffer {
-    lookup_table: [Bitmask; KEYCODE_LENGTH],
+struct KeyBuffer<K> where K: KeycodeType {
+    lookup_table: Vec<Bitmask>,
     up_mask: Bitmask,
     down_mask: Bitmask,
     left_mask: Bitmask,
@@ -79,23 +79,24 @@ struct KeyBuffer {
     toggle_color_picker_mask: Bitmask,
     any_movement_mask: Bitmask,
     any_scale_mask: Bitmask,
+    _keycode_type_marker: PhantomData<K>,
 }
 
-impl KeyBuffer {
-    fn new(key_bindings: &KeyBindings) -> Result<KeyBuffer, &'static str> {
+impl<K> KeyBuffer<K> where K: KeycodeType {
+    fn new(key_bindings: &KeyBindings) -> Result<KeyBuffer<K>, &'static str> {
         // build the lookup table and compute each hotkeys bitmask combination
         let mut bit = 1;
-        let mut lookup_table = [0; KEYCODE_LENGTH];
-        let up_mask = update_key_buffer_values(&key_bindings.up, &mut bit, &mut lookup_table)?;
-        let down_mask = update_key_buffer_values(&key_bindings.down, &mut bit, &mut lookup_table)?;
-        let left_mask = update_key_buffer_values(&key_bindings.left, &mut bit, &mut lookup_table)?;
-        let right_mask = update_key_buffer_values(&key_bindings.right, &mut bit, &mut lookup_table)?;
-        let cycle_monitor_mask = update_key_buffer_values(&key_bindings.cycle_monitor, &mut bit, &mut lookup_table)?;
-        let scale_increase_mask = update_key_buffer_values(&key_bindings.scale_increase, &mut bit, &mut lookup_table)?;
-        let scale_decrease_mask = update_key_buffer_values(&key_bindings.scale_decrease, &mut bit, &mut lookup_table)?;
-        let toggle_hidden_mask = update_key_buffer_values(&key_bindings.toggle_hidden, &mut bit, &mut lookup_table)?;
-        let toggle_adjust_mask = update_key_buffer_values(&key_bindings.toggle_adjust, &mut bit, &mut lookup_table)?;
-        let toggle_color_picker_mask = update_key_buffer_values(&key_bindings.toggle_color_picker, &mut bit, &mut lookup_table)?;
+        let mut lookup_table = vec![0; K::num_variants()];
+        let up_mask = Self::update_key_buffer_values(&key_bindings.up, &mut bit, &mut lookup_table)?;
+        let down_mask = Self::update_key_buffer_values(&key_bindings.down, &mut bit, &mut lookup_table)?;
+        let left_mask = Self::update_key_buffer_values(&key_bindings.left, &mut bit, &mut lookup_table)?;
+        let right_mask = Self::update_key_buffer_values(&key_bindings.right, &mut bit, &mut lookup_table)?;
+        let cycle_monitor_mask = Self::update_key_buffer_values(&key_bindings.cycle_monitor, &mut bit, &mut lookup_table)?;
+        let scale_increase_mask = Self::update_key_buffer_values(&key_bindings.scale_increase, &mut bit, &mut lookup_table)?;
+        let scale_decrease_mask = Self::update_key_buffer_values(&key_bindings.scale_decrease, &mut bit, &mut lookup_table)?;
+        let toggle_hidden_mask = Self::update_key_buffer_values(&key_bindings.toggle_hidden, &mut bit, &mut lookup_table)?;
+        let toggle_adjust_mask = Self::update_key_buffer_values(&key_bindings.toggle_adjust, &mut bit, &mut lookup_table)?;
+        let toggle_color_picker_mask = Self::update_key_buffer_values(&key_bindings.toggle_color_picker, &mut bit, &mut lookup_table)?;
         let any_movement_mask = up_mask | down_mask | left_mask | right_mask;
         let any_scale_mask = scale_increase_mask | scale_decrease_mask;
 
@@ -114,19 +115,49 @@ impl KeyBuffer {
                 toggle_color_picker_mask,
                 any_movement_mask,
                 any_scale_mask,
+                _keycode_type_marker: Default::default(),
             }
         )
+    }
+
+    /// - `key_combination`: a set of keys to use for a specific hotkey action
+    /// - `bit`: a bitmask with a single bit set which is used to represent a single key. For example,
+    ///   Ctrl might end up as 0b1. This bit is shifted for each distinct key we use.
+    /// - `lookup_table`: a lookup table where each item is a key. A value of zero indicates no hotkey
+    ///   uses this key. A nonzero value indicates at least one hotkey uses this key.
+    ///
+    /// This function is called for each hotkey you want to register, and it returns bitmask
+    /// representing which keys must be pressed for that hotkey. Each key used as part of the hotkey
+    /// system is assigned a unique bit in this masking scheme. This means if a u32 is used as the
+    /// bitmask type then only 32 distinct keys may be used across all hotkeys.
+    fn update_key_buffer_values(key_combination: &[Keycode], bit: &mut Bitmask, lookup_table: &mut [Bitmask]) -> Result<Bitmask, &'static str> {
+        let mut mask: Bitmask = 0;
+        for keycode in key_combination {
+            let lookup_table_mask = &mut lookup_table[K::from(*keycode).index()];
+            if *lookup_table_mask == 0 {
+                // if the previous shift overflowed the mask will be zero
+                if *bit == 0 {
+                    return Err("Only 32 distinct keys may be used for hotkeys at this time. Congratulations if you're seeing this, as I didn't think anyone would be crazy enough to use that many keys.");
+                }
+
+                // generate a new mask and add to the table
+                *lookup_table_mask = *bit;
+                *bit <<= 1;
+            }
+            mask |= *lookup_table_mask;
+        }
+        Ok(mask)
     }
 
     /// Get the bitmask that corresponds to this specific key. This returns a mask with a single bit
     /// set for keys used in any hotkey, and returns zero for keys not used in any hotkey.
     #[inline(always)]
-    fn keycode_to_mask(&self, keycode: &DeviceQueryKeycode) -> Bitmask {
-        self.lookup_table[keycode_to_table_index(keycode)]
+    fn keycode_to_mask(&self, keycode: &K) -> Bitmask {
+        self.lookup_table[keycode.index()]
     }
 
     /// Generate the bitmask that corresponds to the currently pressed key combination.
-    fn update(&self, buf: &mut Bitmask, keys: &[DeviceQueryKeycode]) {
+    fn update(&self, buf: &mut Bitmask, keys: &[K]) {
         *buf = 0;
         for keycode in keys {
             *buf |= self.keycode_to_mask(keycode);
@@ -196,50 +227,48 @@ impl KeyBuffer {
     }
 }
 
-pub struct HotkeyManager {
+pub struct HotkeyManager<KS, K> where KS: KeyboardState<K>, K: KeycodeType {
     previous_state: Bitmask,
-    state: Bitmask,
+    current_state: Bitmask,
     movement_key_held_frames: u32,
     scale_key_held_frames: u32,
-    key_buffer: KeyBuffer,
-    device_state: DeviceState,
-    current_keys: Vec<DeviceQueryKeycode>,
+    key_buffer: KeyBuffer<K>,
+    keyboard_state: KS,
 }
 
-impl HotkeyManager {
-    pub fn new(key_bindings: &KeyBindings) -> Result<HotkeyManager, &'static str> {
+impl<KS, K> HotkeyManager<KS, K> where KS: KeyboardState<K>, K: KeycodeType {
+    pub(crate) fn new_generic(key_bindings: &KeyBindings) -> Result<HotkeyManager<KS, K>, &'static str> {
         Ok(
             HotkeyManager {
                 previous_state: 0,
-                state: 0,
+                current_state: 0,
                 movement_key_held_frames: 0,
                 scale_key_held_frames: 0,
                 key_buffer: KeyBuffer::new(key_bindings)?,
-                device_state: DeviceState::new(),
-                current_keys: Vec::new(),
+                keyboard_state: KS::default(),
             }
         )
     }
 
     pub fn poll_keys(&mut self) {
-        self.current_keys = self.device_state.get_keys();
+        self.keyboard_state.poll();
     }
 
     /// updates state with current key data
     pub fn process_keys(&mut self) {
-        self.previous_state = self.state;
+        self.previous_state = self.current_state;
 
         // calculate state
-        let key_buffer: &KeyBuffer = &self.key_buffer;
-        key_buffer.update(&mut self.state, &self.current_keys);
+        let key_buffer = &self.key_buffer;
+        key_buffer.update(&mut self.current_state, self.keyboard_state.get_state());
 
-        self.movement_key_held_frames = if key_buffer.any_movement(self.state) {
+        self.movement_key_held_frames = if key_buffer.any_movement(self.current_state) {
             self.movement_key_held_frames + 1
         } else {
             0
         };
 
-        self.scale_key_held_frames = if key_buffer.any_scale(self.state) {
+        self.scale_key_held_frames = if key_buffer.any_scale(self.current_state) {
             self.scale_key_held_frames + 1
         } else {
             0
@@ -248,31 +277,31 @@ impl HotkeyManager {
 
     /// check if "toggle_hidden" key combination was just pressed
     pub fn toggle_hidden(&self) -> bool {
-        let key_buffer: &KeyBuffer = &self.key_buffer;
-        !key_buffer.toggle_hidden(self.previous_state) && key_buffer.toggle_hidden(self.state)
+        let key_buffer = &self.key_buffer;
+        !key_buffer.toggle_hidden(self.previous_state) && key_buffer.toggle_hidden(self.current_state)
     }
 
     /// check if "toggle_adjust" key combination was just pressed
     pub fn toggle_adjust(&self) -> bool {
-        let key_buffer: &KeyBuffer = &self.key_buffer;
-        !key_buffer.toggle_adjust(self.previous_state) && key_buffer.toggle_adjust(self.state)
+        let key_buffer = &self.key_buffer;
+        !key_buffer.toggle_adjust(self.previous_state) && key_buffer.toggle_adjust(self.current_state)
     }
 
     /// check if "toggle_color_picker" key combination was just pressed
     pub fn toggle_color_picker(&self) -> bool {
-        let key_buffer: &KeyBuffer = &self.key_buffer;
-        !key_buffer.toggle_color_picker(self.previous_state) && key_buffer.toggle_color_picker(self.state)
+        let key_buffer = &self.key_buffer;
+        !key_buffer.toggle_color_picker(self.previous_state) && key_buffer.toggle_color_picker(self.current_state)
     }
 
     /// check if "cycle_monitor" key combination was just pressed
     pub fn cycle_monitor(&self) -> bool {
-        let key_buffer: &KeyBuffer = &self.key_buffer;
-        !key_buffer.cycle_monitor(self.previous_state) && key_buffer.cycle_monitor(self.state)
+        let key_buffer = &self.key_buffer;
+        !key_buffer.cycle_monitor(self.previous_state) && key_buffer.cycle_monitor(self.current_state)
     }
 
     /// calculate the move up speed based on how long movement keys have been held
     pub fn move_up(&self) -> u32 {
-        if self.key_buffer.up(self.state) {
+        if self.key_buffer.up(self.current_state) {
             move_ramp(self.movement_key_held_frames)
         } else {
             0
@@ -281,7 +310,7 @@ impl HotkeyManager {
 
     /// calculate the move down speed based on how long movement keys have been held
     pub fn move_down(&self) -> u32 {
-        if self.key_buffer.down(self.state) {
+        if self.key_buffer.down(self.current_state) {
             move_ramp(self.movement_key_held_frames)
         } else {
             0
@@ -290,7 +319,7 @@ impl HotkeyManager {
 
     /// calculate the move left speed based on how long movement keys have been held
     pub fn move_left(&self) -> u32 {
-        if self.key_buffer.left(self.state) {
+        if self.key_buffer.left(self.current_state) {
             move_ramp(self.movement_key_held_frames)
         } else {
             0
@@ -299,7 +328,7 @@ impl HotkeyManager {
 
     /// calculate the move right speed based on how long movement keys have been held
     pub fn move_right(&self) -> u32 {
-        if self.key_buffer.right(self.state) {
+        if self.key_buffer.right(self.current_state) {
             move_ramp(self.movement_key_held_frames)
         } else {
             0
@@ -308,7 +337,7 @@ impl HotkeyManager {
 
     /// calculate the scale increase speed based on how long scaling keys have been held
     pub fn scale_increase(&self) -> u32 {
-        if self.key_buffer.scale_increase(self.state) {
+        if self.key_buffer.scale_increase(self.current_state) {
             scale_ramp(self.scale_key_held_frames)
         } else {
             0
@@ -317,47 +346,12 @@ impl HotkeyManager {
 
     /// calculate the scale decrease speed based on how long scaling keys have been held
     pub fn scale_decrease(&self) -> u32 {
-        if self.key_buffer.scale_decrease(self.state) {
+        if self.key_buffer.scale_decrease(self.current_state) {
             scale_ramp(self.scale_key_held_frames)
         } else {
             0
         }
     }
-}
-
-impl Default for HotkeyManager {
-    fn default() -> Self {
-        HotkeyManager::new(&KeyBindings::default()).expect("default keybindings were invalid")
-    }
-}
-
-/// - `key_combination`: a set of keys to use for a specific hotkey action
-/// - `bit`: a bitmask with a single bit set which is used to represent a single key. For example,
-///   Ctrl might end up as 0b1. This bit is shifted for each distinct key we use.
-/// - `lookup_table`: a lookup table where each item is a key. A value of zero indicates no hotkey
-///   uses this key. A nonzero value indicates at least one hotkey uses this key.
-///
-/// This function is called for each hotkey you want to register, and it returns bitmask
-/// representing which keys must be pressed for that hotkey. Each key used as part of the hotkey
-/// system is assigned a unique bit in this masking scheme. This means if a u32 is used as the
-/// bitmask type then only 32 distinct keys may be used across all hotkeys.
-fn update_key_buffer_values(key_combination: &[Keycode], bit: &mut Bitmask, lookup_table: &mut [Bitmask; KEYCODE_LENGTH]) -> Result<Bitmask, &'static str> {
-    let mut mask: Bitmask = 0;
-    for keycode in key_combination {
-        let lookup_table_mask = &mut lookup_table[keycode_to_table_index(&keycode.into())];
-        if *lookup_table_mask == 0 {
-            // if the previous shift overflowed the mask will be zero
-            if *bit == 0 {
-                return Err("Only 32 distinct keys may be used for hotkeys at this time. Congratulations if you're seeing this, as I didn't think anyone would be crazy enough to use that many keys.");
-            }
-
-            // generate a new mask and add to the table
-            *lookup_table_mask = *bit;
-            *bit <<= 1;
-        }
-        mask |= *lookup_table_mask;
-    }
-    Ok(mask)
 }
 
 // TODO: this should probably be fps-aware

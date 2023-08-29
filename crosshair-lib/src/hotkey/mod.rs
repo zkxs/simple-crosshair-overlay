@@ -6,8 +6,7 @@
 
 pub use hotkey_manager::HotkeyManager;
 pub use hotkey_manager::KeyBindings;
-use keycode::Keycode;
-use keycode::keycode_to_table_index;
+pub(crate) use keycode::Keycode; // needs to be pub(crate) so the platform-specific implementations can implement From conversions
 
 mod hotkey_manager;
 mod keycode;

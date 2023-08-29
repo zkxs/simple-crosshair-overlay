@@ -21,8 +21,8 @@ use winit::event::{ElementState, Event, MouseButton, WindowEvent};
 use winit::event_loop::EventLoop;
 use winit::window::{CursorGrabMode, CursorIcon, Window, WindowBuilder, WindowLevel};
 
-use crosshair_lib::hotkey::HotkeyManager;
 use crosshair_lib::platform;
+use crosshair_lib::platform::HotkeyManager;
 use crosshair_lib::util::image;
 
 use crate::settings::{RenderMode, Settings};
