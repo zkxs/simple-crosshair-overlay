@@ -7,13 +7,13 @@
 use std::fmt::Debug;
 
 #[cfg(not(target_os = "windows"))]
-pub use generic::{get_foreground_window, HotkeyManager, set_foreground_window, WindowHandle};
+pub use generic::{get_foreground_window, set_foreground_window, WindowHandle};
+pub use generic::HotkeyManager;
 #[cfg(target_os = "windows")]
-pub use windows::{get_foreground_window, HotkeyManager, set_foreground_window, WindowHandle};
+pub use windows::{get_foreground_window, set_foreground_window, WindowHandle};
 
 use crate::hotkey::Keycode;
 
-#[cfg(any(not(target_os = "windows"), feature = "benchmark"))]
 pub mod generic; // pub so benchmarking can access
 
 #[cfg(target_os = "windows")]
