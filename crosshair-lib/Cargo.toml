@@ -16,6 +16,9 @@ png = "0.17"
 device_query = "1"
 serde.workspace = true
 
+[target.'cfg(target_os = "windows")'.dependencies]
+winapi = { version = "0.3", features = ["winuser", "windef", "minwindef"] }
+
 [dev-dependencies]
 criterion = "0.5"
 

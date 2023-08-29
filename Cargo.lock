@@ -509,6 +509,7 @@ dependencies = [
  "device_query",
  "png",
  "serde",
+ "winapi",
 ]
 
 [[package]]
@@ -1975,7 +1976,6 @@ dependencies = [
  "softbuffer",
  "toml 0.7.6",
  "tray-icon",
- "winapi",
  "winit",
  "winres",
 ]

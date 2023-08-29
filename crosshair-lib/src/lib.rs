@@ -4,3 +4,4 @@
 
 pub mod util;
 pub mod hotkey;
+pub mod platform;

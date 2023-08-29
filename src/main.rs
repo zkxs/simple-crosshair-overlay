@@ -22,13 +22,13 @@ use winit::event_loop::EventLoop;
 use winit::window::{CursorGrabMode, CursorIcon, Window, WindowBuilder, WindowLevel};
 
 use crosshair_lib::hotkey::HotkeyManager;
+use crosshair_lib::platform;
 use crosshair_lib::util::image;
 
 use crate::settings::{RenderMode, Settings};
 
 mod settings;
 mod custom_serializer;
-mod platform;
 
 static ICON_TOOLTIP: &str = "Simple Crosshair Overlay";
 
