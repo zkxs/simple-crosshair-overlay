@@ -18,7 +18,7 @@ use tray_icon::{Icon as TrayIcon, menu::Menu, TrayIconBuilder};
 use tray_icon::menu::{CheckMenuItem, IsMenuItem, MenuEvent, MenuItem, Result as MenuResult, Submenu};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::event::{ElementState, Event, MouseButton, WindowEvent};
-use winit::event_loop::EventLoop;
+use winit::event_loop::{DeviceEventFilter, EventLoop};
 use winit::window::{CursorGrabMode, CursorIcon, Window, WindowBuilder, WindowLevel};
 
 use crosshair_lib::platform;
@@ -182,6 +182,7 @@ fn main() {
 
     let menu_channel = MenuEvent::receiver();
     let event_loop = EventLoop::new();
+    event_loop.set_device_event_filter(DeviceEventFilter::Always);
 
     let user_event_sender = event_loop.create_proxy();
     let key_process_interval = settings.tick_interval;
