@@ -8,6 +8,10 @@ This document contains some common commands that I need to remember for package 
    - note that the gtk dependency breaks cargo-outdated on Windows for some reason.
 2. Update dependencies: `cargo update`
 
+## Dependency Vulnerability/License Check
+
+`cargo deny --workspace check`
+
 ## Tests
 
 `cargo test --workspace`
