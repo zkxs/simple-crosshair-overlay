@@ -32,7 +32,7 @@ strip = true # note that this breaks cargo-bloat, and I don't know any fix aside
 
 [dependencies]
 crosshair-lib = { path = "crosshair-lib" }
-tray-icon = "0.8"
+tray-icon = "0.9"
 winit = "0.28"
 softbuffer = "0.3"
 serde.workspace = true
@@ -50,4 +50,4 @@ winres = "0.1"
 ico = "0.3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-gtk = "0.16" # must use this old version of gtk because it's what tray-icon 0.8 needs
+gtk = "0.16" # must use this old version of gtk because it's what tray-icon 0.9 needs
