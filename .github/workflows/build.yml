@@ -19,7 +19,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/master' # only run for pushes to tags or master
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v1
         with:
           arguments: --workspace
@@ -61,7 +61,7 @@ jobs:
     runs-on: ${{ matrix.target.runs-on }}
     steps:
       - name: git checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup workflow cache
         uses: actions/cache@v3
         with:
