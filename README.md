@@ -38,7 +38,7 @@ Use the tray icon to:
 
 - Toggle crosshair visibility (you can also use Ctrl+H)
 - Toggle **Adjust Mode** (you can also use Ctrl+J)
-- Pick a color for the default crosshair (you can also use Ctrl+K).
+- Pick a color for the default crosshair (you can also use Ctrl+K if you are in Adjust Mode).
 - Load a PNG image as your crosshair
 - Reset crosshair to default settings
 - Safely exit the application and save your settings
@@ -48,6 +48,7 @@ In **Adjust Mode**:
 - Arrow keys to move the crosshair
 - PageUp/PageDown to increase/decrease the crosshair scale
 - Ctrl+M to cycle through your monitors
+- Ctrl+K to pick a color for the default crosshair
 
 ### Custom PNG Crosshairs
 

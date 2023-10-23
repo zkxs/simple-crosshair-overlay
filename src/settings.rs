@@ -160,6 +160,11 @@ impl Settings {
         }
     }
 
+    /// Returns `true` if color picker mode is now enabled, `false` otherwise.
+    pub fn get_pick_color(&self) -> bool {
+        self.render_mode == RenderMode::ColorPicker
+    }
+
     /// Set the color of the generated crosshair. The provided `color` must not have premultiplied alpha (yet)
     pub fn set_color(&mut self, color: u32) {
         debug_println!("set color to {color:08X}");

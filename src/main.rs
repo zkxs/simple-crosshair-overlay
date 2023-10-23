@@ -229,7 +229,8 @@ fn main() {
                 hotkey_manager.poll_keys();
                 hotkey_manager.process_keys();
 
-                if menu_items.adjust_button.is_checked() {
+                let adjust_mode = menu_items.adjust_button.is_checked();
+                if adjust_mode {
                     if hotkey_manager.move_up() != 0 {
                         settings.persisted.window_dy -= hotkey_manager.move_up() as i32;
                         window_position_dirty = true;
@@ -284,7 +285,8 @@ fn main() {
                     }
                 }
 
-                if hotkey_manager.toggle_color_picker() {
+                // only enable this hotkey if the color picker is already visible OR if adjust mode is on
+                if hotkey_manager.toggle_color_picker() && (adjust_mode || settings.get_pick_color()) {
                     let color_pick = settings.toggle_pick_color();
                     menu_items.color_pick_button.set_checked(color_pick);
                     handle_color_pick(color_pick, &window, &mut last_focused_window, true);
