@@ -18,7 +18,7 @@ use tray_icon::{Icon as TrayIcon, menu::Menu, TrayIconBuilder};
 use tray_icon::menu::{CheckMenuItem, IsMenuItem, MenuEvent, MenuItem, Result as MenuResult, Submenu};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::event::{ElementState, Event, MouseButton, WindowEvent};
-use winit::event_loop::{DeviceEventFilter, EventLoop};
+use winit::event_loop::{DeviceEvents, EventLoop};
 use winit::window::{CursorGrabMode, CursorIcon, Window, WindowBuilder, WindowLevel};
 
 use crosshair_lib::platform;
@@ -181,8 +181,8 @@ fn main() {
     let mut dialog_worker_join_handle = Some(dialog_worker_join_handle); // we take() from this later
 
     let menu_channel = MenuEvent::receiver();
-    let event_loop = EventLoop::new();
-    event_loop.set_device_event_filter(DeviceEventFilter::Always);
+    let event_loop = EventLoop::new().unwrap();
+    event_loop.listen_device_events(DeviceEvents::Always);
 
     let user_event_sender = event_loop.create_proxy();
     let key_process_interval = settings.tick_interval;
@@ -211,14 +211,15 @@ fn main() {
     let mut last_focused_window: Option<platform::WindowHandle> = None;
 
     // pass control to the event loop
-    event_loop.run(move |event, _, control_flow| {
-        control_flow.set_wait();
+    event_loop.run(move |event, window_target| {
+        // in theory Wait is now the default ControlFlow, so the following isn't needed:
+        // window_target.set_control_flow(ControlFlow::Wait);
 
         let mut window_position_dirty = false;
         let mut window_scale_dirty = false;
 
         match event {
-            Event::RedrawRequested(_) => {
+            Event::WindowEvent{ event: WindowEvent::RedrawRequested, .. } => {
                 // failsafe to resize the window before a redraw if necessary
                 // ...and of course it's fucking necessary
                 settings.validate_window_size(&window, window.inner_size());
@@ -359,7 +360,7 @@ fn main() {
                         handle.join().unwrap();
                     }
 
-                    control_flow.set_exit();
+                    window_target.exit();
                     break;
                 }
                 id if id == menu_items.visible_button.id() => {
@@ -392,7 +393,7 @@ fn main() {
         } else if window_position_dirty {
             on_window_position_change(&window, &mut settings);
         }
-    });
+    }).unwrap();
 }
 
 /// Updates the window state after entering or exiting color picker mode

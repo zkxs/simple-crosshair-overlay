@@ -243,7 +243,7 @@ impl Settings {
     }
 
     pub fn set_window_size(&self, window: &Window) {
-        window.set_inner_size(self.size());
+        let _ = window.request_inner_size(self.size());
     }
 
     pub fn validate_window_size(&self, window: &Window, size: PhysicalSize<u32>) {
