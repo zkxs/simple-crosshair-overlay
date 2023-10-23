@@ -33,7 +33,7 @@ strip = true # note that this breaks cargo-bloat, and I don't know any fix aside
 [dependencies]
 crosshair-lib = { path = "crosshair-lib" }
 tray-icon = "0.9"
-winit = "0.28"
+winit = "0.29"
 softbuffer = "0.3"
 serde.workspace = true
 toml = "0.8"
