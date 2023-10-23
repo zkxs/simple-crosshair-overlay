@@ -16,7 +16,8 @@ on:
       - screenshots/**
 jobs:
   cargo-deny:
-    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/master' # only run for pushes to tags or master
+    # only run for pushes to tags or non-dependabot branches
+    if: startsWith(github.ref, 'refs/tags/') || (startsWith(github.ref, 'refs/heads/') && !startsWith(github.ref, 'refs/heads/dependabot/'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +25,8 @@ jobs:
         with:
           arguments: --workspace
   build:
-    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/master' # only run for pushes to tags or master
+    # only run for pushes to tags or non-dependabot branches
+    if: startsWith(github.ref, 'refs/tags/') || (startsWith(github.ref, 'refs/heads/') && !startsWith(github.ref, 'refs/heads/dependabot/'))
     strategy:
       matrix:
         target:
