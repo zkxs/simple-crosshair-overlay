@@ -77,17 +77,18 @@ fn main() {
         }
     };
 
-    // on non-linux we need this in scope
-    #[cfg(not(target_os = "linux"))] let tray_menu = Menu::new();
+    let tray_menu = Menu::new();
 
-    // windows: icon must be created on same thread as event loop
-    #[cfg(target_os = "windows")] let menu_items = {
+    // on windows/linux/mac: icon must be created on same thread as event loop
+
+    // not mac: do not use a submenu
+    #[cfg(not(target_os = "macos"))] let menu_items = {
         let menu_items = MenuItems::default();
         menu_items.add_to_menu(&tray_menu);
         menu_items
     };
 
-    // mac: icon and event loop must be created on main thread
+    // mac: there are special submenu requirements
     #[cfg(target_os = "macos")] let menu_items = {
         // on mac all menu items must be in a submenu, so just make one with no name. Hope that doesn't cause problems...
         let submenu = tray_icon::menu::Submenu::new("", true);
@@ -98,38 +99,37 @@ fn main() {
         menu_items
     };
 
-    #[cfg(target_os = "linux")] let menu_items = {
-        use std::sync::Arc;
+    #[cfg(target_os = "linux")] {
+        use std::sync::{Arc, Mutex, Condvar};
 
-        let menu_items = Arc::new(MenuItems::default());
-        let menu_items_clone = menu_items.clone();
+        let condvar_pair = Arc::new((Mutex::new(false), Condvar::new()));
 
+        // start GTK background thread
+        let condvar_pair_clone = condvar_pair.clone();
         std::thread::Builder::new()
             .name("gtk-main".to_string())
-            .spawn(|| {
+            .spawn(move || {
                 gtk::init().unwrap();
 
-                let tray_menu = Menu::new();
-                menu_items_clone.add_to_menu(&tray_menu);
-
-                // linux: icon must be created on same thread as gtk main loop,
-                // and therefore can NOT be on the same thread as the event loop despite the tray-icon docs saying otherwise.
-                // This means it's impossible to have it in scope for dropping later from the event loop
-                TrayIconBuilder::new()
-                    .with_menu(Box::new(tray_menu))
-                    .with_tooltip(ICON_TOOLTIP)
-                    .with_icon(get_icon())
-                    .build()
-                    .unwrap();
+                // signal that GTK init is complete
+                let (lock, condvar) = &*condvar_pair_clone;
+                let mut gtk_started = lock.lock().unwrap();
+                *gtk_started = true;
+                condvar.notify_one();
 
                 gtk::main();
             }).unwrap();
 
-        menu_items
-    };
+        // wait for GTK to init
+        let (lock, condvar) = &*condvar_pair;
+        let mut gtk_started = lock.lock().unwrap();
+        while !*gtk_started {
+            gtk_started = condvar.wait(gtk_started).unwrap();
+        }
+    }
 
     // keep the tray icon in an Option so we can take() it later to drop
-    #[cfg(not(target_os = "linux"))] let mut tray_icon = Some(
+    let mut tray_icon = Some(
         TrayIconBuilder::new()
             .with_menu(Box::new(tray_menu))
             .with_tooltip(ICON_TOOLTIP)
@@ -346,8 +346,7 @@ fn main() {
             match event.id {
                 id if id == menu_items.exit_button.id() => {
                     // drop the tray icon, solving the funny Windows issue where it lingers after application close
-                    #[cfg(not(target_os = "linux"))]
-                    tray_icon.take(); // yeah this is simply impossible on Linux, so good luck dropping this at the correct time :)
+                    tray_icon.take();
                     window.set_visible(false);
                     if let Err(e) = settings.save() {
                         show_warning(format!("Error saving settings to \"{}\".\n\n{}", CONFIG_PATH.display(), e));

@@ -37,13 +37,13 @@ jobs:
             suffix: .exe
             path-separator: '\'
             runner-can-execute: true
-#          - runs-on: ubuntu-latest
-#            triple: x86_64-unknown-linux-gnu
-#            build-name: Linux
-#            artifact-suffix: -linux
-#            suffix: ''
-#            path-separator: '/'
-#            runner-can-execute: true
+          - runs-on: ubuntu-latest
+            triple: x86_64-unknown-linux-gnu
+            build-name: Linux
+            artifact-suffix: -linux
+            suffix: ''
+            path-separator: '/'
+            runner-can-execute: true
           - runs-on: macos-latest
             triple: x86_64-apple-darwin
             build-name: macOS x86
