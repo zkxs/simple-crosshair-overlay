@@ -18,11 +18,11 @@ use crosshair_lib::util::image::generate_icon_rgba;
 const TRAY_ICON_DIMENSION: u32 = 32;
 
 /// The sexy Windows .ico with the multiple size defined below adds ~26k to the binary.
-const APP_ICON_DIMENSIONS: [u32; 5] = [16, 24, 32, 48, 64];
+#[cfg(target_os = "windows")] const APP_ICON_DIMENSIONS: [u32; 5] = [16, 24, 32, 48, 64];
 
 static CONSTANTS_SOURCE_NAME: &str = "constants.rs";
 static TRAY_ICON_NAME: &str = "trayicon.argb";
-static APP_ICON_NAME: &str = "app.ico";
+#[cfg(target_os = "windows")] static APP_ICON_NAME: &str = "app.ico";
 static APP_NAME: &str = "Simple Crosshair Overlay";
 
 // Put in some indication that a build was in debug profile so there's a chance someone with the wrong build might one day notice
