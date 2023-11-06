@@ -39,7 +39,7 @@ serde.workspace = true
 toml = "0.8"
 directories = "5"
 lazy_static = "1"
-native-dialog = "0.6"
+native-dialog = "0.7"
 debug_print = "1"
 
 [build-dependencies]
