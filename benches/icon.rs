@@ -7,7 +7,7 @@
 use std::time::Duration;
 use criterion::{BenchmarkId, Criterion};
 
-use crosshair_lib::util::image;
+use simple_crosshair_overlay::util::image;
 
 pub fn bench_icon(c: &mut Criterion) {
     if cfg!(feature = "slow-benchmark") {

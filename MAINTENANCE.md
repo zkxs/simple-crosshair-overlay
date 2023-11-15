@@ -22,7 +22,7 @@ This document contains some common commands that I need to remember for package 
 
 ## Benchmarks
 
-See [crosshair-lib/benches](crosshair-lib/benches) for details.
+See [crosshair-lib/benches](benches) for details.
 
 ## Profiling
 
