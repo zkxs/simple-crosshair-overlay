@@ -5,6 +5,7 @@
 use std::{env, fs, io};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use crosshair_lib::util::image::generate_icon_rgba;
 
@@ -40,6 +41,13 @@ fn main() -> io::Result<()> {
         let constants_path = out_dir.join(CONSTANTS_SOURCE_NAME);
         create_constants(constants_path.as_path())?;
         println!("cargo:rustc-env=CONSTANTS_PATH={}", constants_path.to_str().unwrap());
+    }
+
+    // record git commit hash
+    {
+        let output = Command::new("git").args(["rev-parse", "HEAD"]).output().unwrap();
+        let git_commit_hash = String::from_utf8(output.stdout).unwrap();
+        println!("cargo:rustc-env=GIT_COMMIT_HASH={}", git_commit_hash);
     }
 
     // generate a tray icon

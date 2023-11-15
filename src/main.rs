@@ -381,7 +381,7 @@ fn main() {
                     let _ = DIALOG_REQUEST_SENDER.with(|sender| sender.send(DialogRequest::PngPath));
                 }
                 id if id == menu_items.about_button.id() => {
-                    show_info(format!("{}\nversion {}", build_constants::APPLICATION_NAME, env!("CARGO_PKG_VERSION")));
+                    show_info(format!("{}\nversion {} {}", build_constants::APPLICATION_NAME, env!("CARGO_PKG_VERSION"), env!("GIT_COMMIT_HASH")));
                 }
                 _ => (),
             }
