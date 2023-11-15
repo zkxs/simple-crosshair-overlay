@@ -4,5 +4,7 @@
 
 //! Various utilities
 
-pub mod numeric;
+pub mod custom_serializer;
+pub mod dialog;
 pub mod image;
+pub mod numeric;

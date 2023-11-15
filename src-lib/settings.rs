@@ -9,15 +9,15 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use debug_print::debug_println;
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::window::Window;
 
-use simple_crosshair_overlay::hotkey::KeyBindings;
-use simple_crosshair_overlay::util::image::{self, Image};
-use simple_crosshair_overlay::util::numeric::fps_to_tick_interval;
-
-use crate::{CONFIG_PATH, show_warning};
+use crate::hotkey::KeyBindings;
+use crate::util::dialog::show_warning;
+use crate::util::image::{self, Image};
+use crate::util::numeric::fps_to_tick_interval;
 
 const DEFAULT_OFFSET_X: i32 = 0;
 const DEFAULT_OFFSET_Y: i32 = 0;
@@ -36,6 +36,10 @@ const fn default_monitor() -> u32 {
     DEFAULT_MONITOR
 }
 
+lazy_static! {
+    pub static ref CONFIG_PATH: PathBuf = directories::ProjectDirs::from("dev.zkxs", "", "simple-crosshair-overlay").unwrap().config_dir().join("config.toml");
+}
+
 /// The actual persisted settings struct
 #[derive(Deserialize, Serialize)]
 pub struct PersistedSettings {
@@ -43,7 +47,7 @@ pub struct PersistedSettings {
     pub window_dy: i32,
     pub window_width: u32,
     pub window_height: u32,
-    #[serde(with = "crate::custom_serializer::argb_color")]
+    #[serde(with = "crate::util::custom_serializer::argb_color")]
     color: u32,
     #[serde(default = "default_fps")]
     fps: u32,

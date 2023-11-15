@@ -6,14 +6,9 @@
 
 use std::io;
 use std::num::NonZeroU32;
-use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::mpsc;
-use std::sync::Mutex;
 
 use debug_print::debug_println;
-use lazy_static::lazy_static;
-use native_dialog::{FileDialog, MessageDialog, MessageType};
 use softbuffer::{Context, Surface};
 use tray_icon::{Icon as TrayIcon, menu::Menu, TrayIconBuilder};
 use tray_icon::menu::{CheckMenuItem, IsMenuItem, MenuEvent, MenuItem, Result as MenuResult, Submenu};
@@ -24,33 +19,12 @@ use winit::window::{CursorGrabMode, CursorIcon, Window, WindowBuilder, WindowLev
 
 use simple_crosshair_overlay::platform;
 use simple_crosshair_overlay::platform::HotkeyManager;
+use simple_crosshair_overlay::settings::{RenderMode, Settings};
+use simple_crosshair_overlay::settings::CONFIG_PATH;
 use simple_crosshair_overlay::util::image;
-
-use crate::settings::{RenderMode, Settings};
-
-mod settings;
-mod custom_serializer;
+use simple_crosshair_overlay::util::dialog;
 
 static ICON_TOOLTIP: &str = "Simple Crosshair Overlay";
-
-lazy_static! {
-    pub static ref CONFIG_PATH: PathBuf = directories::ProjectDirs::from("dev.zkxs", "", "simple-crosshair-overlay").unwrap().config_dir().join("config.toml");
-
-    // this is some arcane bullshit to get a global mpsc
-    // the sender can be cloned, and we'll do that via a thread_local later
-    // the receiver can't be cloned, so just shove it in an Option so we can take() it later.
-    static ref DIALOG_REQUEST_CHANNEL: (Mutex<mpsc::Sender<DialogRequest>>, Mutex<Option<mpsc::Receiver<DialogRequest>>>) = {
-        let (sender, receiver) = mpsc::channel();
-        let sender = Mutex::new(sender);
-        let receiver = Mutex::new(Some(receiver));
-        (sender, receiver)
-    };
-}
-
-thread_local! {
-    // We only need one of these per thread. As we don't use any thread pools this should be a one-time cost on application startup.
-    static DIALOG_REQUEST_SENDER: mpsc::Sender<DialogRequest> = DIALOG_REQUEST_CHANNEL.0.lock().unwrap().clone();
-}
 
 /// constants generated in build.rs
 mod build_constants {
@@ -64,7 +38,7 @@ fn main() {
         Ok(settings) => settings,
         Err(e) if e.kind() == io::ErrorKind::NotFound => Settings::default(), // generate new settings file when it doesn't exist
         Err(e) => {
-            show_warning(format!("Error loading settings file \"{}\". Resetting to default settings.\n\n{}", CONFIG_PATH.display(), e));
+            dialog::show_warning(format!("Error loading settings file \"{}\". Resetting to default settings.\n\n{}", CONFIG_PATH.display(), e));
             Settings::default()
         }
     };
@@ -73,7 +47,7 @@ fn main() {
     let mut hotkey_manager = match HotkeyManager::new(&settings.persisted.key_bindings) {
         Ok(hotkey_manager) => hotkey_manager,
         Err(e) => {
-            show_warning(format!("{e}\n\nUsing default hotkeys."));
+            dialog::show_warning(format!("{e}\n\nUsing default hotkeys."));
             HotkeyManager::default()
         }
     };
@@ -139,46 +113,12 @@ fn main() {
             .unwrap()
     );
 
-    let (file_path_sender, file_path_receiver) = mpsc::channel();
-    let dialog_request_receiver = DIALOG_REQUEST_CHANNEL.1.lock().unwrap().take().unwrap();
-
     // native dialogs block a thread, so we'll spin up a single thread to loop through queued dialogs.
     // If we ever need to show multiple dialogs, they just get queued.
-    let dialog_worker_join_handle = std::thread::Builder::new()
-        .name("dialog-worker".to_string())
-        .spawn(move || {
-            loop {
-                // block waiting for a file read request
-                match dialog_request_receiver.recv().unwrap() {
-                    DialogRequest::PngPath => {
-                        let path = FileDialog::new()
-                            .add_filter("PNG Image", &["png"])
-                            .show_open_single_file()
-                            .ok()
-                            .flatten();
-
-                        let _ = file_path_sender.send(path);
-                    }
-                    DialogRequest::Info(text) => {
-                        MessageDialog::new()
-                            .set_type(MessageType::Info)
-                            .set_title("Simple Crosshair Overlay")
-                            .set_text(&text)
-                            .show_alert()
-                            .unwrap();
-                    }
-                    DialogRequest::Warning(text) => {
-                        MessageDialog::new()
-                            .set_type(MessageType::Warning)
-                            .set_title("Simple Crosshair Overlay")
-                            .set_text(&text)
-                            .show_alert()
-                            .unwrap();
-                    }
-                    DialogRequest::Terminate => break,
-                }
-            }
-        }).unwrap();
+    let dialog::DialogWorker {
+        join_handle: dialog_worker_join_handle,
+        file_path_receiver,
+    } = dialog::spawn_worker();
     let mut dialog_worker_join_handle = Some(dialog_worker_join_handle); // we take() from this later
 
     let menu_channel = MenuEvent::receiver();
@@ -220,7 +160,7 @@ fn main() {
         let mut window_scale_dirty = false;
 
         match event {
-            Event::WindowEvent{ event: WindowEvent::RedrawRequested, .. } => {
+            Event::WindowEvent { event: WindowEvent::RedrawRequested, .. } => {
                 // failsafe to resize the window before a redraw if necessary
                 // ...and of course it's fucking necessary
                 settings.validate_window_size(&window, window.inner_size());
@@ -339,7 +279,7 @@ fn main() {
                         force_redraw = true;
                         window_scale_dirty = true;
                     }
-                    Err(e) => show_warning(format!("Error loading PNG.\n\n{}", e))
+                    Err(e) => dialog::show_warning(format!("Error loading PNG.\n\n{}", e))
                 }
             }
         }
@@ -351,12 +291,12 @@ fn main() {
                     tray_icon.take();
                     window.set_visible(false);
                     if let Err(e) = settings.save() {
-                        show_warning(format!("Error saving settings to \"{}\".\n\n{}", CONFIG_PATH.display(), e));
+                        dialog::show_warning(format!("Error saving settings to \"{}\".\n\n{}", CONFIG_PATH.display(), e));
                     }
 
                     // kill the dialog worker and wait for it to finish
                     // this makes the application remain open until the user has clicked through any queued dialogs
-                    terminate_dialog_worker();
+                    dialog::terminate_worker();
                     if let Some(handle) = dialog_worker_join_handle.take() {
                         handle.join().unwrap();
                     }
@@ -380,10 +320,10 @@ fn main() {
                 }
                 id if id == menu_items.image_pick_button.id() => {
                     menu_items.image_pick_button.set_enabled(false);
-                    let _ = DIALOG_REQUEST_SENDER.with(|sender| sender.send(DialogRequest::PngPath));
+                    dialog::request_png();
                 }
                 id if id == menu_items.about_button.id() => {
-                    show_info(format!("{}\nversion {} {}", build_constants::APPLICATION_NAME, env!("CARGO_PKG_VERSION"), env!("GIT_COMMIT_HASH")));
+                    dialog::show_info(format!("{}\nversion {} {}", build_constants::APPLICATION_NAME, env!("CARGO_PKG_VERSION"), env!("GIT_COMMIT_HASH")));
                 }
                 _ => (),
             }
@@ -558,21 +498,6 @@ fn init_window(event_loop: &EventLoop<()>, settings: &mut Settings) -> Window {
     window
 }
 
-/// show a native popup with an info icon + sound
-pub fn show_info(text: String) {
-    let _ = DIALOG_REQUEST_SENDER.with(|sender| sender.send(DialogRequest::Info(text)));
-}
-
-/// show a native popup with a warning icon + sound
-pub fn show_warning(text: String) {
-    let _ = DIALOG_REQUEST_SENDER.with(|sender| sender.send(DialogRequest::Warning(text)));
-}
-
-/// signal the dialog worker thread to shut down once it's done processing its queue
-pub fn terminate_dialog_worker() {
-    let _ = DIALOG_REQUEST_SENDER.with(|sender| sender.send(DialogRequest::Terminate));
-}
-
 /// Contains the menu items in our tray menu
 #[derive(Clone)]
 struct MenuItems {
@@ -637,16 +562,4 @@ impl AppendableMenu for Submenu {
     fn append(&self, item: &dyn IsMenuItem) -> MenuResult<()> {
         self.append(item)
     }
-}
-
-/// The different types of requests the dialog worker thread can process
-enum DialogRequest {
-    /// Show a file browser for the user to select a PNG image
-    PngPath,
-    /// Show an informational popup with the provided text
-    Info(String),
-    /// Show a warning popup with the provided text
-    Warning(String),
-    /// Stop the dialog worker thread
-    Terminate,
 }

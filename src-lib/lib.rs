@@ -2,6 +2,8 @@
 // See LICENSE file for full text.
 // Copyright © 2023 Michael Ripley
 
-pub mod util;
 pub mod hotkey;
 pub mod platform;
+pub mod settings;
+pub mod util;
+
