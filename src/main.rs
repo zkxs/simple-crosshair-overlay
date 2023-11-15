@@ -7,6 +7,7 @@
 use std::io;
 use std::num::NonZeroU32;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::mpsc;
 use std::sync::Mutex;
 
@@ -199,9 +200,9 @@ fn main() {
     // It is highly illegal to use the context or surface after the window is dropped.
     // The context only gets used right here, so that's fine.
     // As of this writing, none of these get moved. Therefore they all get dropped one after the other at the end of main(), which is safe.
-    let window = init_window(&event_loop, &mut settings);
-    let context = unsafe { Context::new(&window) }.unwrap();
-    let mut surface = unsafe { Surface::new(&context, &window) }.unwrap();
+    let window = Rc::new(init_window(&event_loop, &mut settings));
+    let context = Context::new(window.clone()).unwrap();
+    let mut surface = Surface::new(&context, window.clone()).unwrap();
 
     // remember some application state that's NOT part of our saved config
     let mut window_visible = true;
@@ -444,7 +445,7 @@ fn on_window_position_change(window: &Window, settings: &mut Settings) {
 /// Draws a crosshair image, or a simple red crosshair if no image is set. Normally this only
 /// redraws the buffer if it's uninitialized, but redraw can be forced by setting the `force`
 /// parameter to `true`.
-fn draw_window(surface: &mut Surface, settings: &Settings, force: bool) {
+fn draw_window(surface: &mut Surface<Rc<Window>, Rc<Window>>, settings: &Settings, force: bool) {
     let PhysicalSize { width: window_width, height: window_height } = settings.size();
     surface.resize(
         NonZeroU32::new(window_width).unwrap(),
