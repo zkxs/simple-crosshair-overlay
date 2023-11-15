@@ -547,17 +547,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "crosshair-lib"
-version = "1.1.0"
-dependencies = [
- "criterion",
- "device_query",
- "png",
- "serde",
- "winapi",
-]
-
-[[package]]
 name = "ctor"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1982,17 +1971,20 @@ checksum = "d66dc143e6b11c1eddc06d5c423cfc97062865baf299914ab64caa38182078fe"
 name = "simple-crosshair-overlay"
 version = "1.1.0"
 dependencies = [
- "crosshair-lib",
+ "criterion",
  "debug_print",
+ "device_query",
  "directories",
  "gtk",
  "ico",
  "lazy_static",
  "native-dialog",
+ "png",
  "serde",
  "softbuffer",
  "toml 0.8.8",
  "tray-icon",
+ "winapi",
  "winit",
  "winres",
 ]

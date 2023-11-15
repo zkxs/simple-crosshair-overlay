@@ -64,7 +64,7 @@ Hotkeys cannot currently be changed in-application. To edit your hotkeys, do the
 
 1. Open the config file `%appdata%\simple-crosshair-overlay\config\config.toml`. If this file does not exist, starting
    and exiting the program once will create it.
-2. Change hotkeys in the `key_bindings` section by referencing the Keycode values defined in [keycode.rs](src/hotkey/keycode.rs)
+2. Change hotkeys in the `key_bindings` section by referencing the Keycode values defined in [keycode.rs](src-lib/hotkey/keycode.rs)
 
 ## Notes
 

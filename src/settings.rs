@@ -13,9 +13,9 @@ use serde::{Deserialize, Serialize};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::window::Window;
 
-use crosshair_lib::hotkey::KeyBindings;
-use crosshair_lib::util::image::{self, Image};
-use crosshair_lib::util::numeric::fps_to_tick_interval;
+use simple_crosshair_overlay::hotkey::KeyBindings;
+use simple_crosshair_overlay::util::image::{self, Image};
+use simple_crosshair_overlay::util::numeric::fps_to_tick_interval;
 
 use crate::{CONFIG_PATH, show_warning};
 

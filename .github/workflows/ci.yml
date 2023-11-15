@@ -22,8 +22,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v1
-        with:
-          arguments: --workspace
   test:
     strategy:
       matrix:
@@ -84,7 +82,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev
       - name: Check
-        run: cargo check --workspace --target ${{ matrix.target.triple }}
+        run: cargo check --target ${{ matrix.target.triple }}
       - name: Test
         if: matrix.target.runner-can-execute
-        run: cargo test --workspace --target ${{ matrix.target.triple }}
+        run: cargo test --target ${{ matrix.target.triple }}
