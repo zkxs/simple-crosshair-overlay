@@ -22,12 +22,13 @@ This document contains some common commands that I need to remember for package 
 
 ## Benchmarks
 
-See [crosshair-lib/benches](benches) for details.
+Run [benchmarks](benches) with
+`cargo bench --features "benchmark"`
 
 ## Profiling
 
-1. add `debug = true` to `[profile.release]`
-2. remove `strip = true` from `[profile.release]`
+1. add `debug = true` to `[profile.release]` in [Cargo.toml](Cargo.toml)
+2. remove `strip = true` from `[profile.release]` in [Cargo.toml](Cargo.toml)
 3. elevate to administrator privileges
 4. `cargo flamegraph`
 
