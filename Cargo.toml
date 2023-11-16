@@ -23,7 +23,6 @@ strip = true # note that this breaks cargo-bloat, and I don't know any fix aside
 
 [features]
 benchmark = [] # used to compile reference functions only needed for benchmarking against
-slow-benchmark = [] # used to run slow benchmarks
 
 [dependencies]
 tray-icon = { version = "0.10", default-features = false }
