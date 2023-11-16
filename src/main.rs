@@ -75,7 +75,7 @@ fn main() {
     };
 
     #[cfg(target_os = "linux")] {
-        use std::sync::{Arc, Condvar};
+        use std::sync::{Arc, Condvar, Mutex};
 
         let condvar_pair = Arc::new((Mutex::new(false), Condvar::new()));
 
