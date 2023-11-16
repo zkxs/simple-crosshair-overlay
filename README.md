@@ -81,6 +81,12 @@ Simple Crosshair Overlay supports 0.5 pixel alignment with the default crosshair
 2. Clone the project
 3. `cargo build --release`
 
+## Feedback
+
+If you have bugs to report please let me know by opening an [issue](https://github.com/zkxs/simple-crosshair-overlay/issues).
+
+For suggestions, questions, or even just to say hey, feel free to start a [discussion](https://github.com/zkxs/simple-crosshair-overlay/discussions).
+
 ## License
 
 Copyright 2023 [Michael Ripley](https://github.com/zkxs).
