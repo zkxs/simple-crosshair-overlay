@@ -115,11 +115,7 @@ fn main() {
 
     // native dialogs block a thread, so we'll spin up a single thread to loop through queued dialogs.
     // If we ever need to show multiple dialogs, they just get queued.
-    let dialog::DialogWorker {
-        join_handle: dialog_worker_join_handle,
-        file_path_receiver,
-    } = dialog::spawn_worker();
-    let mut dialog_worker_join_handle = Some(dialog_worker_join_handle); // we take() from this later
+    let mut dialog_worker = dialog::spawn_worker();
 
     let menu_channel = MenuEvent::receiver();
     let event_loop = EventLoop::new().unwrap();
@@ -270,7 +266,7 @@ fn main() {
             _ => ()
         }
 
-        if let Ok(path) = file_path_receiver.try_recv() {
+        if let Ok(path) = dialog_worker.try_recv_file_path() {
             menu_items.image_pick_button.set_enabled(true);
 
             if let Some(path) = path {
@@ -296,10 +292,7 @@ fn main() {
 
                     // kill the dialog worker and wait for it to finish
                     // this makes the application remain open until the user has clicked through any queued dialogs
-                    dialog::terminate_worker();
-                    if let Some(handle) = dialog_worker_join_handle.take() {
-                        handle.join().unwrap();
-                    }
+                    dialog_worker.shutdown().expect("failed to shut down dialog worker");
 
                     window_target.exit();
                     break;

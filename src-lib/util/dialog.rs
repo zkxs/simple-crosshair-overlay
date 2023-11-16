@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use std::sync::mpsc;
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{Receiver, TryRecvError};
 use std::sync::Mutex;
 use std::thread::JoinHandle;
 
@@ -38,8 +38,22 @@ enum DialogRequest {
 }
 
 pub struct DialogWorker {
-    pub join_handle: JoinHandle<()>,
-    pub file_path_receiver: Receiver<Option<PathBuf>>,
+    join_handle: Option<JoinHandle<()>>,
+    file_path_receiver: Receiver<Option<PathBuf>>,
+}
+
+impl DialogWorker {
+    /// try to get a file path from the dialog worker's internal queue
+    pub fn try_recv_file_path(&self) -> Result<Option<PathBuf>, TryRecvError> {
+        self.file_path_receiver.try_recv()
+    }
+
+    /// signal the dialog worker thread to shut down once it's done processing its queue
+    pub fn shutdown(&mut self) -> Option<()> {
+        let _ = DIALOG_REQUEST_SENDER.with(|sender| sender.send(DialogRequest::Terminate));
+        self.join_handle.take()?.join().ok()
+    }
+
 }
 
 /// show a native popup with an info icon + sound
@@ -100,12 +114,7 @@ pub fn spawn_worker() -> DialogWorker {
         }).unwrap();
 
     DialogWorker {
-        join_handle,
+        join_handle: Some(join_handle), // we take() from this later
         file_path_receiver,
     }
-}
-
-/// signal the dialog worker thread to shut down once it's done processing its queue
-pub fn terminate_worker() {
-    let _ = DIALOG_REQUEST_SENDER.with(|sender| sender.send(DialogRequest::Terminate));
 }
