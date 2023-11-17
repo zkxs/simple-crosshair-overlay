@@ -76,6 +76,7 @@ fn main() {
 
     #[cfg(target_os = "linux")] {
         use std::sync::{Arc, Condvar, Mutex};
+        use std::time::Duration;
 
         let condvar_pair = Arc::new((Mutex::new(false), Condvar::new()));
 
@@ -98,8 +99,11 @@ fn main() {
         // wait for GTK to init
         let (lock, condvar) = &*condvar_pair;
         let mut gtk_started = lock.lock().unwrap();
-        while !*gtk_started {
-            gtk_started = condvar.wait(gtk_started).unwrap();
+        if !*gtk_started {
+            let (gtk_started, timeout_result) = condvar.wait_timeout(gtk_started, Duration::from_secs(5)).unwrap();
+            if !*gtk_started {
+                panic!("GTK startup timed out = {}", timeout_result.timed_out());
+            }
         }
     }
 
