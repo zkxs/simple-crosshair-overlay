@@ -74,14 +74,19 @@ fn main() {
         menu_items
     };
 
-    #[cfg(target_os = "linux")] {
-        use std::sync::{Arc, Condvar, Mutex};
-        use std::time::Duration;
+    let tray_icon_builder = TrayIconBuilder::new()
+        .with_menu(Box::new(tray_menu))
+        .with_tooltip(ICON_TOOLTIP)
+        .with_icon(get_icon());
 
-        let condvar_pair = Arc::new((Mutex::new(false), Condvar::new()));
+    // keep the tray icon in an Option so we can take() it later to drop
+    // on Linux this MUST be called on the GTK thread
+    #[cfg(not(target_os = "linux"))] let mut tray_icon = Some(tray_icon_builder.build().unwrap());
+
+    #[cfg(target_os = "linux")] let mut tray_icon = {
+        let (tray_icon_sender, tray_icon_receiver) = oneshot::channel();
 
         // start GTK background thread
-        let condvar_pair_clone = condvar_pair.clone();
         std::thread::Builder::new()
             .name("gtk-main".to_string())
             .spawn(move || {
@@ -89,13 +94,9 @@ fn main() {
                 gtk::init().unwrap();
                 debug_println!("GTK init complete");
 
-                // signal that GTK init is complete
-                {
-                    let (lock, condvar) = &*condvar_pair_clone;
-                    let mut gtk_started = lock.lock().unwrap();
-                    *gtk_started = true;
-                    condvar.notify_one();
-                } // this block is actually necessary so that the lock gets released!
+                // initialize the tray icon
+                let tray_icon = tray_icon_builder.build().unwrap();
+                tray_icon_sender.send(tray_icon).unwrap(); // this also signals that GTK init is complete
 
                 debug_println!("GTK init signal sent. Starting GTK main loop.");
                 gtk::main();
@@ -104,29 +105,11 @@ fn main() {
         debug_println!("spawned GTK background thread");
 
         // wait for GTK to init
-        let (lock, condvar) = &*condvar_pair;
-        let gtk_started = lock.lock().unwrap();
-        debug_println!("acquired GTK lock");
-        if !*gtk_started {
-            debug_println!("waiting for GTK init signal");
-            let (gtk_started, timeout_result) = condvar.wait_timeout(gtk_started, Duration::from_secs(5)).unwrap();
-            if !*gtk_started {
-                panic!("GTK startup timed out = {}", timeout_result.timed_out());
-            }
-        }
-
+        let tray_icon = tray_icon_receiver.recv().unwrap();
         debug_println!("GTK startup complete");
-    }
 
-    // keep the tray icon in an Option so we can take() it later to drop
-    let mut tray_icon = Some(
-        TrayIconBuilder::new()
-            .with_menu(Box::new(tray_menu))
-            .with_tooltip(ICON_TOOLTIP)
-            .with_icon(get_icon())
-            .build()
-            .unwrap()
-    );
+        Some(tray_icon)
+    };
 
     // native dialogs block a thread, so we'll spin up a single thread to loop through queued dialogs.
     // If we ever need to show multiple dialogs, they just get queued.
