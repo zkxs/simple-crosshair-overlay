@@ -42,7 +42,6 @@ winapi = { version = "0.3", features = ["winuser", "windef", "minwindef"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.18" # must use this version of gtk because it's what tray-icon 0.10 needs
-oneshot = { version = "0.1", default-features = false, features = ["std"] } # used to pass the tray_icon from GTK thread to the event loop
 
 [target.'cfg(target_os = "windows")'.build-dependencies]
 winres = "0.1"
