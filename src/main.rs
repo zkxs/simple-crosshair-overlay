@@ -85,26 +85,37 @@ fn main() {
         std::thread::Builder::new()
             .name("gtk-main".to_string())
             .spawn(move || {
+                debug_println!("starting GTK background thread");
                 gtk::init().unwrap();
+                debug_println!("GTK init complete");
 
                 // signal that GTK init is complete
-                let (lock, condvar) = &*condvar_pair_clone;
-                let mut gtk_started = lock.lock().unwrap();
-                *gtk_started = true;
-                condvar.notify_one();
+                {
+                    let (lock, condvar) = &*condvar_pair_clone;
+                    let mut gtk_started = lock.lock().unwrap();
+                    *gtk_started = true;
+                    condvar.notify_one();
+                } // this block is actually necessary so that the lock gets released!
 
+                debug_println!("GTK init signal sent. Starting GTK main loop.");
                 gtk::main();
+                debug_println!("GTK main loop returned!? Weird.");
             }).unwrap();
+        debug_println!("spawned GTK background thread");
 
         // wait for GTK to init
         let (lock, condvar) = &*condvar_pair;
-        let mut gtk_started = lock.lock().unwrap();
+        let gtk_started = lock.lock().unwrap();
+        debug_println!("acquired GTK lock");
         if !*gtk_started {
+            debug_println!("waiting for GTK init signal");
             let (gtk_started, timeout_result) = condvar.wait_timeout(gtk_started, Duration::from_secs(5)).unwrap();
             if !*gtk_started {
                 panic!("GTK startup timed out = {}", timeout_result.timed_out());
             }
         }
+
+        debug_println!("GTK startup complete");
     }
 
     // keep the tray icon in an Option so we can take() it later to drop
