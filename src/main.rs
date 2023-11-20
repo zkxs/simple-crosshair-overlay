@@ -21,8 +21,11 @@ use simple_crosshair_overlay::platform;
 use simple_crosshair_overlay::platform::HotkeyManager;
 use simple_crosshair_overlay::settings::{RenderMode, Settings};
 use simple_crosshair_overlay::settings::CONFIG_PATH;
-use simple_crosshair_overlay::util::image;
 use simple_crosshair_overlay::util::dialog;
+use simple_crosshair_overlay::util::image;
+
+#[cfg(target_os = "linux")]
+mod linux;
 
 static ICON_TOOLTIP: &str = "Simple Crosshair Overlay";
 
@@ -88,7 +91,6 @@ fn main() {
 
         // start GTK background thread
         let condvar_pair_clone = condvar_pair.clone();
-        let menu_items_clone = menu_items.clone();
         std::thread::Builder::new()
             .name("gtk-main".to_string())
             .spawn(move || {
@@ -98,13 +100,13 @@ fn main() {
 
                 // initialize the tray icon
                 let tray_menu = Menu::new();
-                menu_items_clone.add_to_menu(&tray_menu);
+                menu_items.add_to_menu(&tray_menu);
 
                 let tray_icon_builder = TrayIconBuilder::new()
                     .with_menu(Box::new(tray_menu))
                     .with_tooltip(ICON_TOOLTIP)
                     .with_icon(get_icon());
-                let _tray_icon = tray_icon_builder.build().unwrap();
+                let mut tray_icon = Some(tray_icon_builder.build().unwrap());
 
                 // signal that GTK init is complete
                 {
@@ -115,7 +117,11 @@ fn main() {
                 } // this block is actually necessary so that the lock gets released!
 
                 debug_println!("GTK init signal sent. Starting GTK main loop.");
-                gtk::main();
+                loop {
+                    gtk::main_iteration_do(false);
+                    //TODO: channel MenuItem state around?
+                    std::thread::yield_now();
+                }
                 debug_println!("GTK main loop returned!? Weird.");
             }).unwrap();
         debug_println!("spawned GTK background thread");
