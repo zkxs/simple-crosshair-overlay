@@ -5,8 +5,9 @@
 name: CI
 on:
   pull_request:
-    branches:
-      - master # run for pull requests that target master
+    branches: # run for pull requests that target master or prerelease
+      - master
+      - prerelease
     paths-ignore: # ignore files that can't alter build output
       - '**.md'
       - .github/dependabot.yml
