@@ -21,8 +21,11 @@ use simple_crosshair_overlay::platform;
 use simple_crosshair_overlay::platform::HotkeyManager;
 use simple_crosshair_overlay::settings::{RenderMode, Settings};
 use simple_crosshair_overlay::settings::CONFIG_PATH;
-use simple_crosshair_overlay::util::image;
 use simple_crosshair_overlay::util::dialog;
+use simple_crosshair_overlay::util::image;
+
+#[cfg(target_os = "linux")]
+mod linux;
 
 static ICON_TOOLTIP: &str = "Simple Crosshair Overlay";
 
@@ -52,30 +55,37 @@ fn main() {
         }
     };
 
-    let tray_menu = Menu::new();
+    // on linux we have to do this in a completely different way
+    #[cfg(not(target_os = "linux"))] let tray_menu = Menu::new();
 
-    // on windows/linux/mac: icon must be created on same thread as event loop
+    let menu_items = MenuItems::default();
 
-    // not mac: do not use a submenu
-    #[cfg(not(target_os = "macos"))] let menu_items = {
-        let menu_items = MenuItems::default();
+    // windows: do not use a submenu
+    #[cfg(target_os = "windows")] {
         menu_items.add_to_menu(&tray_menu);
-        menu_items
-    };
+    }
 
     // mac: there are special submenu requirements
-    #[cfg(target_os = "macos")] let menu_items = {
+    #[cfg(target_os = "macos")] {
         // on mac all menu items must be in a submenu, so just make one with no name. Hope that doesn't cause problems...
         let submenu = tray_icon::menu::Submenu::new("", true);
         tray_menu.append(&submenu).unwrap();
-
-        let menu_items = MenuItems::default();
         menu_items.add_to_menu(&submenu);
-        menu_items
+    }
+
+    // keep the tray icon in an Option so we can take() it later to drop
+    // on Linux this MUST be called on the GTK thread, so we have to do some weird hijinks to pass things around
+    #[cfg(not(target_os = "linux"))] let mut tray_icon = {
+        let tray_icon_builder = TrayIconBuilder::new()
+            .with_menu(Box::new(tray_menu))
+            .with_tooltip(ICON_TOOLTIP)
+            .with_icon(get_icon());
+        Some(tray_icon_builder.build().unwrap())
     };
 
     #[cfg(target_os = "linux")] {
         use std::sync::{Arc, Condvar, Mutex};
+        use std::time::Duration;
 
         let condvar_pair = Arc::new((Mutex::new(false), Condvar::new()));
 
@@ -84,34 +94,52 @@ fn main() {
         std::thread::Builder::new()
             .name("gtk-main".to_string())
             .spawn(move || {
+                debug_println!("starting GTK background thread");
                 gtk::init().unwrap();
+                debug_println!("GTK init complete");
+
+                // initialize the tray icon
+                let tray_menu = Menu::new();
+                menu_items.add_to_menu(&tray_menu);
+
+                let tray_icon_builder = TrayIconBuilder::new()
+                    .with_menu(Box::new(tray_menu))
+                    .with_tooltip(ICON_TOOLTIP)
+                    .with_icon(get_icon());
+                let mut tray_icon = Some(tray_icon_builder.build().unwrap());
 
                 // signal that GTK init is complete
-                let (lock, condvar) = &*condvar_pair_clone;
-                let mut gtk_started = lock.lock().unwrap();
-                *gtk_started = true;
-                condvar.notify_one();
+                {
+                    let (lock, condvar) = &*condvar_pair_clone;
+                    let mut gtk_started = lock.lock().unwrap();
+                    *gtk_started = true;
+                    condvar.notify_one();
+                } // this block is actually necessary so that the lock gets released!
 
-                gtk::main();
+                debug_println!("GTK init signal sent. Starting GTK main loop.");
+                loop {
+                    gtk::main_iteration_do(false);
+                    //TODO: channel MenuItem state around?
+                    std::thread::yield_now();
+                }
+                debug_println!("GTK main loop returned!? Weird.");
             }).unwrap();
+        debug_println!("spawned GTK background thread");
 
         // wait for GTK to init
         let (lock, condvar) = &*condvar_pair;
-        let mut gtk_started = lock.lock().unwrap();
-        while !*gtk_started {
-            gtk_started = condvar.wait(gtk_started).unwrap();
+        let gtk_started = lock.lock().unwrap();
+        debug_println!("acquired GTK lock");
+        if !*gtk_started {
+            debug_println!("waiting for GTK init signal");
+            let (gtk_started, timeout_result) = condvar.wait_timeout(gtk_started, Duration::from_secs(5)).unwrap();
+            if !*gtk_started {
+                panic!("GTK startup timed out = {}", timeout_result.timed_out());
+            }
         }
-    }
 
-    // keep the tray icon in an Option so we can take() it later to drop
-    let mut tray_icon = Some(
-        TrayIconBuilder::new()
-            .with_menu(Box::new(tray_menu))
-            .with_tooltip(ICON_TOOLTIP)
-            .with_icon(get_icon())
-            .build()
-            .unwrap()
-    );
+        debug_println!("GTK startup complete");
+    }
 
     // native dialogs block a thread, so we'll spin up a single thread to loop through queued dialogs.
     // If we ever need to show multiple dialogs, they just get queued.
@@ -284,7 +312,7 @@ fn main() {
             match event.id {
                 id if id == menu_items.exit_button.id() => {
                     // drop the tray icon, solving the funny Windows issue where it lingers after application close
-                    tray_icon.take();
+                    #[cfg(not(target_os = "linux"))] tray_icon.take();
                     window.set_visible(false);
                     if let Err(e) = settings.save() {
                         dialog::show_warning(format!("Error saving settings to \"{}\".\n\n{}", CONFIG_PATH.display(), e));
