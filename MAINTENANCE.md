@@ -18,7 +18,7 @@ This document contains some common commands that I need to remember for package 
 ## Bloat Measurement
 
 1. Temporarily comment out `strip = true` in [Cargo.toml](Cargo.toml)
-2. Run `+nightly bloat -Z build-std=std --target x86_64-pc-windows-msvc --release -n 50 --crates`
+2. Run `cargo +nightly bloat -Z build-std=std --target x86_64-pc-windows-msvc --release -n 50 --crates`
 
 ## Benchmarks
 
