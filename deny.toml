@@ -220,7 +220,6 @@ skip = [
     { name = "linux-raw-sys" },
     { name = "memmap2" },
     { name = "memoffset" },
-    { name = "nix" },
     { name = "num_enum" },
     { name = "num_enum_derive" },
     { name = "raw-window-handle" },
