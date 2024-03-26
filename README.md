@@ -1,10 +1,8 @@
 # Simple Crosshair Overlay
 
-A simple native crosshair overlay without unnecessary bloat. Free and open-source software.
-
+A performant native crosshair overlay without unnecessary bloat. Free and open-source software.
 
 ![screenshot of the default, simple crosshair in action](screenshots/cross.png)
-
 
 <details>
 <summary>Click here to expand another screenshot demoing a custom PNG crosshair</summary>
@@ -16,11 +14,11 @@ A simple native crosshair overlay without unnecessary bloat. Free and open-sourc
 ## Features
 
 - Works on any application that's not fullscreen exclusive. You **must** use windowed or borderless-windowed mode on your game. This was an intentional design choice, as rendering into a fullscreen-exclusive game is not anticheat-compatible.
-- Performant: the overlay is only redrawn when you change the crosshair. CPU and memory usage are minimal, and the GPU isn't used at all.
+- Performant: the overlay is only redrawn when you change the crosshair. CPU, GPU, and memory usage are minimal.
 - Minimal UI: managed via a tray icon and hotkeys.
 - Comes with a simple default crosshair that can be scaled and recolored to your preference.
 - Can use custom PNG images as crosshairs.
-- No installer. The application is completely portable. The only file this program creates is small configuration saved in `%appdata%\simple-crosshair-overlay`.
+- No installer. The only file this program creates is small configuration saved in `%appdata%\simple-crosshair-overlay`.
 
 ## Installation
 
@@ -28,7 +26,7 @@ A simple native crosshair overlay without unnecessary bloat. Free and open-sourc
 2. Run simple-crosshair-overlay.exe
 3. Optionally, if you want a start menu shortcut you can make one yourself! Simply right-click simple-crosshair-overlay.exe and select "Pin to Start". This will automatically create a shortcut in `%appdata%\Microsoft\Windows\Start Menu\Programs`. 
 
-**MacOS** binaries are available, but untested. See the [MacOS support tracking issue](https://github.com/zkxs/simple-crosshair-overlay/issues/3).
+**MacOS** binaries are available, but broken as I lack hardware to debug against. See the [MacOS support tracking issue](https://github.com/zkxs/simple-crosshair-overlay/issues/3).
 
 **Linux** is presently unsupported, pending resolution of a few issues. See the [Linux support tracking issue](https://github.com/zkxs/simple-crosshair-overlay/issues/6). Additionally, you must have the following prerequisites installed:
 - libappindicator-gtk3
