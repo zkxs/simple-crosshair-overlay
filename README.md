@@ -26,7 +26,7 @@ A performant native crosshair overlay without unnecessary bloat. Free and open-s
 2. Run simple-crosshair-overlay.exe
 3. Optionally, if you want a start menu shortcut you can make one yourself! Simply right-click simple-crosshair-overlay.exe and select "Pin to Start". This will automatically create a shortcut in `%appdata%\Microsoft\Windows\Start Menu\Programs`. 
 
-**MacOS** binaries are available, but broken as I lack hardware to debug against. See the [MacOS support tracking issue](https://github.com/zkxs/simple-crosshair-overlay/issues/3).
+**MacOS** binaries are available, but completely untested as I lack hardware to test against. See the [MacOS support tracking issue](https://github.com/zkxs/simple-crosshair-overlay/issues/3).
 
 **Linux** is presently unsupported, pending resolution of a few issues. See the [Linux support tracking issue](https://github.com/zkxs/simple-crosshair-overlay/issues/6). Additionally, you must have the following prerequisites installed:
 - libappindicator-gtk3
