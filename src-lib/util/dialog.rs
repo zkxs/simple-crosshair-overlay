@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, TryRecvError};
 use std::sync::Mutex;
 use std::thread::JoinHandle;
 
@@ -39,12 +38,12 @@ enum DialogRequest {
 
 pub struct DialogWorker {
     join_handle: Option<JoinHandle<()>>,
-    file_path_receiver: Receiver<Option<PathBuf>>,
+    file_path_receiver: mpsc::Receiver<Option<PathBuf>>,
 }
 
 impl DialogWorker {
     /// try to get a file path from the dialog worker's internal queue
-    pub fn try_recv_file_path(&self) -> Result<Option<PathBuf>, TryRecvError> {
+    pub fn try_recv_file_path(&self) -> Result<Option<PathBuf>, mpsc::TryRecvError> {
         self.file_path_receiver.try_recv()
     }
 

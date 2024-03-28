@@ -99,22 +99,22 @@ mod test_div_rounding {
 
     #[test]
     fn div_ceil_usize_no_round() {
-        assert_eq!((100usize).div_ceil_placeholder(2), 50);
+        assert_eq!(100usize.div_ceil_placeholder(2), 50);
     }
 
     #[test]
     fn div_ceil_u64_no_round() {
-        assert_eq!((100u64).div_ceil_placeholder(2), 50);
+        assert_eq!(100u64.div_ceil_placeholder(2), 50);
     }
 
     #[test]
     fn div_ceil_usize_rounds_up() {
-        assert_eq!((101usize).div_ceil_placeholder(2), 51);
+        assert_eq!(101usize.div_ceil_placeholder(2), 51);
     }
 
     #[test]
     fn div_ceil_u64_rounds_up() {
-        assert_eq!((101u64).div_ceil_placeholder(2), 51);
+        assert_eq!(101u64.div_ceil_placeholder(2), 51);
     }
 
     #[test]

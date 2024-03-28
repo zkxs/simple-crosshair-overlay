@@ -47,13 +47,10 @@ fn main() {
     };
 
     // HotkeyManager has a decent quantity of data in it, but again it never really gets moved so we can just leave it on the stack
-    let mut hotkey_manager = match HotkeyManager::new(&settings.persisted.key_bindings) {
-        Ok(hotkey_manager) => hotkey_manager,
-        Err(e) => {
-            dialog::show_warning(format!("{e}\n\nUsing default hotkeys."));
-            HotkeyManager::default()
-        }
-    };
+    let mut hotkey_manager = HotkeyManager::new(&settings.persisted.key_bindings).unwrap_or_else(|e| {
+        dialog::show_warning(format!("{e}\n\nUsing default hotkeys."));
+        HotkeyManager::default()
+    });
 
     // on linux we have to do this in a completely different way
     #[cfg(not(target_os = "linux"))] let tray_menu = Menu::new();
