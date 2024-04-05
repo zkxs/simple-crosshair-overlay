@@ -18,7 +18,7 @@ This document contains some common commands that I need to remember for package 
 ## Bloat Measurement
 
 1. Temporarily comment out `strip = true` in [Cargo.toml](Cargo.toml)
-2. Run `cargo +nightly bloat -Z build-std=std --target x86_64-pc-windows-msvc --release -n 50 --crates`
+2. Run `cargo +nightly bloat -Z build-std=std --target x86_64-pc-windows-msvc --profile=release-optimized-debug -n 50 --crates`
 
 ## Benchmarks
 
@@ -27,10 +27,8 @@ Run [benchmarks](benches) with
 
 ## Profiling
 
-1. add `debug = true` to `[profile.release]` in [Cargo.toml](Cargo.toml)
-2. remove `strip = true` from `[profile.release]` in [Cargo.toml](Cargo.toml)
-3. elevate to administrator privileges
-4. `cargo flamegraph`
+1. elevate to administrator privileges
+2. `cargo flamegraph --profile=release-optimized-debug`
 
 ## Size-Optimized Build Using Nightly Rust
 

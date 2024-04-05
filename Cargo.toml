@@ -18,8 +18,12 @@ path = "src-lib/lib.rs"
 [profile.release]
 lto = "fat"
 codegen-units = 1
-strip = true # note that this breaks cargo-bloat, and I don't know any fix aside from commenting out this line
-#debug = true # note that this is required for `cargo flamegraph`
+strip = true
+
+[profile.release-optimized-debug]
+inherits = "release"
+strip = false # required for `cargo-bloat`
+debug = true # required for `cargo flamegraph`, and makes `cargo-bloat` output significantly better
 
 [features]
 benchmark = [] # used to compile reference functions only needed for benchmarking against
