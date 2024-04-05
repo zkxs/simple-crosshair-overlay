@@ -35,6 +35,8 @@ mod build_constants {
 }
 
 fn main() {
+    // Initialize Eventloop before everything
+    let event_loop = EventLoop::new().unwrap();
     // settings has a decent quantity of data in it, but it never really gets moved so we can just leave it on the stack
     // the image buffer is internally boxed so don't worry about that
     let mut settings = match Settings::load() {
@@ -146,7 +148,6 @@ fn main() {
     let mut dialog_worker = dialog::spawn_worker();
 
     let menu_channel = MenuEvent::receiver();
-    let event_loop = EventLoop::new().unwrap();
     event_loop.listen_device_events(DeviceEvents::Always);
 
     let user_event_sender = event_loop.create_proxy();
