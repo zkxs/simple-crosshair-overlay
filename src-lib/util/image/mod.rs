@@ -160,7 +160,7 @@ fn x_y_to_argb_252(x: u8, y: u8) -> u32 {
 
 /// Convert BE RGBA to LE ARGB, premultiplying alpha where required by the target platform.
 #[inline(always)]
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", target_os = "macos"))]
 fn rgba_to_argb(rgba_color: u32) -> u32 {
     // OPTIMIZATION NOTE: this could benefit from SIMD. However, it only happens when the user loads
     // a PNG from disk. So not only is this infrequent, the latency of doing all the number crunching
@@ -185,7 +185,7 @@ fn rgba_to_argb(rgba_color: u32) -> u32 {
 
 /// Convert BE RGBA to LE ARGB, premultiplying alpha where required by the target platform.
 #[inline(always)]
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 fn rgba_to_argb(rgba_color: u32) -> u32 {
     // The PNG data is currently laid out as RGBA in BE order.
     // From a LE perspective, this means the actual data in the u32 is ABGR
@@ -197,7 +197,7 @@ fn rgba_to_argb(rgba_color: u32) -> u32 {
 }
 
 /// Premultiply alpha if required by current platform. On this platform this performs the premultiplication.
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", target_os = "macos"))]
 pub fn premultiply_alpha(color: u32) -> u32 {
     let [b, g, r, a] = color.to_le_bytes();
     u32::from_le_bytes(
@@ -211,7 +211,7 @@ pub fn premultiply_alpha(color: u32) -> u32 {
 }
 
 /// Premultiply alpha if required by current platform. On this platform this is a no-op.
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 pub fn premultiply_alpha(color: u32) -> u32 {
     color
 }
