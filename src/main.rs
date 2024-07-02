@@ -15,8 +15,6 @@ use simple_crosshair_overlay::settings::CONFIG_PATH;
 use simple_crosshair_overlay::settings::Settings;
 use simple_crosshair_overlay::util::dialog;
 
-#[cfg(target_os = "linux")]
-mod linux;
 mod window;
 mod tray;
 
