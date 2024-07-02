@@ -184,8 +184,11 @@ impl <'a> WindowState<'a> {
 
         if self.window_scale_dirty {
             on_window_size_or_position_change(&self.window, &mut self.settings);
+            self.window_scale_dirty = false;
+            self.window_position_dirty = false;
         } else if self.window_position_dirty {
             on_window_position_change(&self.window, &mut self.settings);
+            self.window_position_dirty = false;
         }
     }
 }
