@@ -1,3 +1,7 @@
+// This file is part of simple-crosshair-overlay and is licenced under the GNU GPL v3.0.
+// See LICENSE file for full text.
+// Copyright © 2023-2024 Michael Ripley
+
 #[cfg(target_os = "linux")]
 use debug_print::debug_println;
 use tray_icon::{menu::Menu, TrayIcon, TrayIconBuilder};

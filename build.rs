@@ -1,6 +1,6 @@
 // This file is part of simple-crosshair-overlay and is licenced under the GNU GPL v3.0.
 // See LICENSE file for full text.
-// Copyright © 2023 Michael Ripley
+// Copyright © 2023-2024 Michael Ripley
 
 use std::{env, fs, io};
 use std::io::{BufWriter, Write};

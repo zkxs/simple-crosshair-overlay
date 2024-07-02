@@ -88,6 +88,6 @@ For suggestions, questions, or even just to say hey, feel free to start a [discu
 
 ## License
 
-Copyright 2023 [Michael Ripley](https://github.com/zkxs).
+Copyright 2023-2024 [Michael Ripley](https://github.com/zkxs).
 
 Simple Crosshair Overlay is provided under the [GPL-3.0 license](LICENSE).
