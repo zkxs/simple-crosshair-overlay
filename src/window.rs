@@ -420,6 +420,14 @@ fn init_window(active_event_loop: &ActiveEventLoop, settings: &mut Settings) -> 
             .with_skip_taskbar(true)
     };
 
+    #[cfg(target_os = "macos")] let window_attributes = {
+        use winit::platform::macos::WindowAttributesExtMacOS;
+        window_attributes
+            .with_title_hidden(true)
+            .with_titlebar_hidden(true)
+            .with_has_shadow(false)
+    };
+
     let window = active_event_loop.create_window(window_attributes)
         .unwrap();
 
