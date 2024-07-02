@@ -17,11 +17,11 @@ use std::process::Command;
 const TRAY_ICON_DIMENSION: u32 = 32;
 
 /// The sexy Windows .ico with the multiple size defined below adds ~26k to the binary.
-#[cfg(target_os = "windows")] const APP_ICON_DIMENSIONS: [u32; 5] = [16, 24, 32, 48, 64];
+const APP_ICON_DIMENSIONS: [u32; 5] = [16, 24, 32, 48, 64];
 
 static CONSTANTS_SOURCE_NAME: &str = "constants.rs";
 static TRAY_ICON_NAME: &str = "trayicon.argb";
-#[cfg(target_os = "windows")] static APP_ICON_NAME: &str = "app.ico";
+static APP_ICON_NAME: &str = "app.ico";
 static APP_NAME: &str = "Simple Crosshair Overlay";
 
 // Put in some indication that a build was in debug profile so there's a chance someone with the wrong build might one day notice
@@ -56,8 +56,7 @@ fn main() -> io::Result<()> {
     }
 
     // only generate Windows resource info on Windows.
-    #[cfg(target_os = "windows")]
-    {
+    if env::var("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
         let icon_path = out_dir.join(APP_ICON_NAME);
         generate_file_if_not_cached(icon_path.as_path(), create_windows_app_icon_file)?;
 
@@ -138,7 +137,6 @@ fn create_tray_icon_file(path: &Path) -> io::Result<()> {
 }
 
 /// build a .ico file for windows
-#[cfg(target_os = "windows")]
 fn create_windows_app_icon_file(path: &Path) -> io::Result<()> {
     let mut icon_dir = ico::IconDir::new(ico::ResourceType::Icon);
 
