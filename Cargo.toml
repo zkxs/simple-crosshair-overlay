@@ -29,8 +29,8 @@ debug = true # required for `cargo flamegraph`, and makes `cargo-bloat` output s
 benchmark = [] # used to compile reference functions only needed for benchmarking against
 
 [dependencies]
-tray-icon = { version = "0.13", default-features = false }
-winit = "0.29"
+tray-icon = { version = "0.14", default-features = false }
+winit = "0.30"
 softbuffer = "0.4"
 serde = { version = "1", features = ["derive"] }
 toml = "0.8.12"
@@ -47,7 +47,7 @@ winapi = { version = "0.3", features = ["winuser", "windef", "minwindef"] }
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.18" # must use this version of gtk because it's what tray-icon 0.10 needs
 
-[target.'cfg(target_os = "windows")'.build-dependencies]
+[build-dependencies]
 winres = "0.1"
 ico = "0.3"
 

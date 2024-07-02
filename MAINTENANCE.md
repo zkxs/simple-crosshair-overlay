@@ -11,6 +11,12 @@ This document contains some common commands that I need to remember for package 
 
 `cargo deny check`
 
+## Check & Lint
+
+To check all supported targets for compilation/lint errors, run:
+
+`cargo clippy --target x86_64-pc-windows-msvc --target x86_64-apple-darwin --target aarch64-apple-darwin --all-features`
+
 ## Tests
 
 `cargo test`
