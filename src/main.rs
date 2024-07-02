@@ -15,7 +15,7 @@ use tray_icon::menu::{CheckMenuItem, IsMenuItem, MenuEvent, MenuItem, Result as 
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::event::{ElementState, Event, MouseButton, WindowEvent};
 use winit::event_loop::{DeviceEvents, EventLoop};
-use winit::window::{CursorGrabMode, CursorIcon, Window, WindowBuilder, WindowLevel};
+use winit::window::{CursorGrabMode, CursorIcon, Window, WindowLevel};
 
 use simple_crosshair_overlay::platform;
 use simple_crosshair_overlay::platform::HotkeyManager;
@@ -174,9 +174,9 @@ fn main() {
     let mut last_focused_window: Option<platform::WindowHandle> = None;
 
     // pass control to the event loop
-    event_loop.run(move |event, window_target| {
+    event_loop.run(move |event, active_event_loop| {
         // in theory Wait is now the default ControlFlow, so the following isn't needed:
-        // window_target.set_control_flow(ControlFlow::Wait);
+        // active_event_loop.set_control_flow(ControlFlow::Wait);
 
         let mut window_position_dirty = false;
         let mut window_scale_dirty = false;
@@ -320,7 +320,7 @@ fn main() {
                     // this makes the application remain open until the user has clicked through any queued dialogs
                     dialog_worker.shutdown().expect("failed to shut down dialog worker");
 
-                    window_target.exit();
+                    active_event_loop.exit();
                     break;
                 }
                 id if id == menu_items.visible_button.id() => {
@@ -478,7 +478,7 @@ fn get_icon() -> TrayIcon {
 
 /// Initialize the window. This gives a transparent, borderless window that's always on top and can be clicked through.
 fn init_window(event_loop: &EventLoop<()>, settings: &mut Settings) -> Window {
-    let window_builder = WindowBuilder::new()
+    let window_attributes = Window::default_attributes()
         .with_visible(false) // things get very buggy on Windows if you default the window to invisible...
         .with_transparent(true)
         .with_decorations(false)
@@ -488,14 +488,14 @@ fn init_window(event_loop: &EventLoop<()>, settings: &mut Settings) -> Window {
         .with_inner_size(PhysicalSize::new(1, 1)) // this might flicker so make it very tiny
         .with_active(false);
 
-    #[cfg(target_os = "windows")] let window_builder = {
-        use winit::platform::windows::WindowBuilderExtWindows;
-        window_builder
+    #[cfg(target_os = "windows")] let window_attributes = {
+        use winit::platform::windows::WindowAttributesExtWindows;
+        window_attributes
             .with_drag_and_drop(false)
             .with_skip_taskbar(true)
     };
 
-    let window = window_builder.build(event_loop)
+    let window = event_loop.create_window(window_attributes)
         .unwrap();
 
     // contrary to all my expectations this call appears to work reliably
@@ -512,7 +512,7 @@ fn init_window(event_loop: &EventLoop<()>, settings: &mut Settings) -> Window {
     // Windows particularly hates if you unset cursor_hittest while the window is hidden
     window.set_cursor_hittest(false).unwrap();
     window.set_window_level(WindowLevel::AlwaysOnTop);
-    window.set_cursor_icon(CursorIcon::Crosshair); // Yo Dawg, I herd you like crosshairs so I put a crosshair in your crosshair so you can aim while you aim.
+    window.set_cursor(CursorIcon::Crosshair); // Yo Dawg, I herd you like crosshairs so I put a crosshair in your crosshair so you can aim while you aim.
 
     window
 }

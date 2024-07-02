@@ -30,7 +30,7 @@ benchmark = [] # used to compile reference functions only needed for benchmarkin
 
 [dependencies]
 tray-icon = { version = "0.14", default-features = false }
-winit = "0.29"
+winit = "0.30"
 softbuffer = "0.4"
 serde = { version = "1", features = ["derive"] }
 toml = "0.8.12"
