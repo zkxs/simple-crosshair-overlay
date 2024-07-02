@@ -42,8 +42,8 @@ fn main() {
         }
     };
 
-    //TODO: is this needed?
-    event_loop.listen_device_events(DeviceEvents::Always);
+    // only functional on Linux targets
+    event_loop.listen_device_events(DeviceEvents::Never);
 
     // start sending tick events
     start_tick_sender(&settings, &event_loop);
