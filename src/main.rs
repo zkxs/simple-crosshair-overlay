@@ -10,18 +10,20 @@ use std::rc::Rc;
 
 use debug_print::debug_println;
 use softbuffer::{Context, Surface};
-use tray_icon::{Icon as TrayIcon, menu::Menu, TrayIconBuilder};
-use tray_icon::menu::{CheckMenuItem, IsMenuItem, MenuEvent, MenuItem, Result as MenuResult, Submenu};
+use tray_icon::{menu::Menu, TrayIcon, TrayIconBuilder};
+use tray_icon::menu::{CheckMenuItem, IsMenuItem, MenuEvent, MenuEventReceiver, MenuItem, Result as MenuResult, Submenu};
+use winit::application::ApplicationHandler;
 use winit::dpi::{PhysicalPosition, PhysicalSize};
-use winit::event::{ElementState, Event, MouseButton, WindowEvent};
-use winit::event_loop::{DeviceEvents, EventLoop};
-use winit::window::{CursorGrabMode, CursorIcon, Window, WindowLevel};
+use winit::event::{DeviceEvent, DeviceId, ElementState, MouseButton, StartCause, WindowEvent};
+use winit::event_loop::{ActiveEventLoop, DeviceEvents, EventLoop};
+use winit::window::{CursorGrabMode, CursorIcon, Window, WindowId, WindowLevel};
 
 use simple_crosshair_overlay::platform;
 use simple_crosshair_overlay::platform::HotkeyManager;
 use simple_crosshair_overlay::settings::{RenderMode, Settings};
 use simple_crosshair_overlay::settings::CONFIG_PATH;
 use simple_crosshair_overlay::util::dialog;
+use simple_crosshair_overlay::util::dialog::DialogWorker;
 use simple_crosshair_overlay::util::image;
 
 #[cfg(target_os = "linux")]
@@ -36,10 +38,13 @@ mod build_constants {
 
 fn main() {
     // Initialize Eventloop before everything
-    let event_loop = EventLoop::new().unwrap();
+    let event_loop: EventLoop<UserEvent> = EventLoop::new().unwrap();
+    // in theory Wait is now the default ControlFlow, so the following isn't needed:
+    // event_loop.set_control_flow(ControlFlow::Wait);
+
     // settings has a decent quantity of data in it, but it never really gets moved so we can just leave it on the stack
     // the image buffer is internally boxed so don't worry about that
-    let mut settings = match Settings::load() {
+    let settings = match Settings::load() {
         Ok(settings) => settings,
         Err(e) if e.kind() == io::ErrorKind::NotFound => Settings::default(), // generate new settings file when it doesn't exist
         Err(e) => {
@@ -48,12 +53,285 @@ fn main() {
         }
     };
 
-    // HotkeyManager has a decent quantity of data in it, but again it never really gets moved so we can just leave it on the stack
-    let mut hotkey_manager = HotkeyManager::new(&settings.persisted.key_bindings).unwrap_or_else(|e| {
-        dialog::show_warning(format!("{e}\n\nUsing default hotkeys."));
-        HotkeyManager::default()
-    });
+    //TODO: is this needed?
+    event_loop.listen_device_events(DeviceEvents::Always);
 
+    // start sending tick events
+    start_tick_sender(&settings, &event_loop);
+
+    // create the winit application
+    let mut window_state = WindowState::new(settings, &event_loop);
+
+    // pass control to the event loop
+    event_loop.run_app(&mut window_state).unwrap();
+}
+
+type UserEvent = ();
+
+struct WindowState<'a> {
+    window: Rc<Window>,
+    surface: Surface<Rc<Window>, Rc<Window>>,
+    settings: Settings,
+    hotkey_manager: HotkeyManager,
+    /// native dialogs block a thread, so we'll spin up a single thread to loop through queued dialogs.
+    /// If we ever need to show multiple dialogs, they just get queued.
+    dialog_worker: DialogWorker,
+    /// we keep the tray icon in an Option so that we can take() it later to drop
+    tray_icon: Option<TrayIcon>,
+    menu_items: MenuItems,
+    last_focused_window: Option<platform::WindowHandle>,
+    last_mouse_position: PhysicalPosition<f64>,
+    menu_channel: &'a MenuEventReceiver,
+    /// if set to true, the next redraw will be forced even for known buffer contents
+    force_redraw: bool,
+    window_position_dirty: bool,
+    window_scale_dirty: bool,
+    window_visible: bool,
+}
+
+impl <'a> WindowState<'a> {
+    fn new(mut settings: Settings, event_loop: &EventLoop<UserEvent>) -> Self {
+        // HotkeyManager has a decent quantity of data in it, but again it never really gets moved so we can just leave it on the stack
+        let hotkey_manager: HotkeyManager = HotkeyManager::new(&settings.persisted.key_bindings).unwrap_or_else(|e| {
+            dialog::show_warning(format!("{e}\n\nUsing default hotkeys."));
+            HotkeyManager::default()
+        });
+
+        let (menu_items, tray_icon) = build_tray_icon();
+
+        // unsafe note: these three structs MUST live and die together.
+        // It is highly illegal to use the context or surface after the window is dropped.
+        // The context only gets used right here, so that's fine.
+        // As of this writing, none of these get moved. Therefore they all get dropped one after the other at the end of main(), which is safe.
+        let window = Rc::new(init_window(event_loop, &mut settings));
+        let context = Context::new(window.clone()).unwrap();
+        let surface: Surface<Rc<Window>, Rc<Window>> = Surface::new(&context, window.clone()).unwrap();
+
+        WindowState {
+            window,
+            surface,
+            settings,
+            hotkey_manager,
+            dialog_worker: dialog::spawn_worker(),
+            tray_icon: Some(tray_icon),
+            menu_items,
+            last_focused_window: None,
+            last_mouse_position: Default::default(),
+            menu_channel: MenuEvent::receiver(),
+            force_redraw: false,
+            window_position_dirty: false,
+            window_scale_dirty: false,
+            window_visible: true,
+        }
+    }
+
+    fn post_event_work(&mut self, active_event_loop: &ActiveEventLoop) {
+        if let Ok(path) = self.dialog_worker.try_recv_file_path() {
+            self.menu_items.image_pick_button.set_enabled(true);
+
+            if let Some(path) = path {
+                match self.settings.load_png(path) {
+                    Ok(()) => {
+                        self.force_redraw = true;
+                        self.window_scale_dirty = true;
+                    }
+                    Err(e) => dialog::show_warning(format!("Error loading PNG.\n\n{}", e))
+                }
+            }
+        }
+
+        while let Ok(event) = self.menu_channel.try_recv() {
+            match event.id {
+                id if id == self.menu_items.exit_button.id() => {
+                    // drop the tray icon, solving the funny Windows issue where it lingers after application close
+                    #[cfg(not(target_os = "linux"))] self.tray_icon.take();
+                    self. window.set_visible(false);
+                    if let Err(e) = self.settings.save() {
+                        dialog::show_warning(format!("Error saving settings to \"{}\".\n\n{}", CONFIG_PATH.display(), e));
+                    }
+
+                    // kill the dialog worker and wait for it to finish
+                    // this makes the application remain open until the user has clicked through any queued dialogs
+                    self.dialog_worker.shutdown().expect("failed to shut down dialog worker");
+
+                    active_event_loop.exit();
+                    break;
+                }
+                id if id == self.menu_items.visible_button.id() => {
+                    self.window.set_visible(self.menu_items.visible_button.is_checked());
+                }
+                id if id == self.menu_items.reset_button.id() => {
+                    self.settings.reset();
+                    self.force_redraw = true;
+                    self.window_scale_dirty = true;
+                }
+                id if id == self.menu_items.color_pick_button.id() => {
+                    let pick_color = self.menu_items.color_pick_button.is_checked();
+                    self.settings.set_pick_color(pick_color);
+                    handle_color_pick(pick_color, &self.window, &mut self.last_focused_window, false);
+                    self.window_scale_dirty = true;
+                }
+                id if id == self.menu_items.image_pick_button.id() => {
+                    self.menu_items.image_pick_button.set_enabled(false);
+                    dialog::request_png();
+                }
+                id if id == self.menu_items.about_button.id() => {
+                    dialog::show_info(format!("{}\nversion {} {}", build_constants::APPLICATION_NAME, env!("CARGO_PKG_VERSION"), env!("GIT_COMMIT_HASH")));
+                }
+                _ => (),
+            }
+        }
+
+        if self.window_scale_dirty {
+            on_window_size_or_position_change(&self.window, &mut self.settings);
+        } else if self.window_position_dirty {
+            on_window_position_change(&self.window, &mut self.settings);
+        }
+    }
+}
+
+impl <'a> ApplicationHandler<UserEvent> for WindowState<'a> {
+    fn new_events(&mut self, _event_loop: &ActiveEventLoop, _cause: StartCause) {
+    }
+
+    fn resumed(&mut self, _event_loop: &ActiveEventLoop) {
+    }
+
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, _event: UserEvent) {
+        self.hotkey_manager.poll_keys();
+        self.hotkey_manager.process_keys();
+
+        let adjust_mode = self.menu_items.adjust_button.is_checked();
+        if adjust_mode {
+            if self.hotkey_manager.move_up() != 0 {
+                self.settings.persisted.window_dy -= self.hotkey_manager.move_up() as i32;
+                self.window_position_dirty = true;
+            }
+
+            if self.hotkey_manager.move_down() != 0 {
+                self.settings.persisted.window_dy += self.hotkey_manager.move_down() as i32;
+                self.window_position_dirty = true;
+            }
+
+            if self.hotkey_manager.move_left() != 0 {
+                self.settings.persisted.window_dx -= self.hotkey_manager.move_left() as i32;
+                self.window_position_dirty = true;
+            }
+
+            if self.hotkey_manager.move_right() != 0 {
+                self.settings.persisted.window_dx += self.hotkey_manager.move_right() as i32;
+                self.window_position_dirty = true;
+            }
+
+            if self.hotkey_manager.cycle_monitor() {
+                self.settings.monitor_index = (self.settings.monitor_index + 1) % self.window.available_monitors().count();
+                self.window_scale_dirty = true;
+            }
+
+            if self.settings.is_scalable() && self.hotkey_manager.scale_increase() != 0 {
+                self.settings.persisted.window_height += self.hotkey_manager.scale_increase();
+                self.settings.persisted.window_width = self.settings.persisted.window_height;
+                self.window_scale_dirty = true;
+            }
+
+            if self.settings.is_scalable() && self.hotkey_manager.scale_decrease() != 0 {
+                self.settings.persisted.window_height = self.settings.persisted.window_height.checked_sub(self.hotkey_manager.scale_decrease()).unwrap_or(1).max(1);
+                self.settings.persisted.window_width = self.settings.persisted.window_height;
+                self.window_scale_dirty = true;
+            }
+
+            // adjust button is already checked
+            if self.hotkey_manager.toggle_adjust() {
+                self.menu_items.adjust_button.set_checked(false)
+            }
+        } else if self.hotkey_manager.toggle_adjust() {
+            // adjust button is NOT checked
+            self.menu_items.adjust_button.set_checked(true)
+        }
+
+        if self.hotkey_manager.toggle_hidden() {
+            self.window_visible = !self.window_visible;
+            self.window.set_visible(self.window_visible);
+            if !self.window_visible {
+                self.menu_items.adjust_button.set_checked(false)
+            }
+        }
+
+        // only enable this hotkey if the color picker is already visible OR if adjust mode is on
+        if self.hotkey_manager.toggle_color_picker() && (adjust_mode || self.settings.get_pick_color()) {
+            let color_pick = self.settings.toggle_pick_color();
+            self.menu_items.color_pick_button.set_checked(color_pick);
+            handle_color_pick(color_pick, &self.window, &mut self.last_focused_window, true);
+            self.window_scale_dirty = true;
+        }
+
+        self.post_event_work(event_loop);
+    }
+
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, _window_id: WindowId, event: WindowEvent) {
+        match event {
+            WindowEvent::RedrawRequested => {
+                // failsafe to resize the window before a redraw if necessary
+                // ...and of course it's fucking necessary
+                self.settings.validate_window_size(&self.window, self.window.inner_size());
+                draw_window(&mut self.surface, &self.settings, self.force_redraw);
+                self.force_redraw = false;
+            }
+            WindowEvent::Moved(position) => {
+                // incredibly, if the taskbar is at the top or left of the screen Windows will
+                // (un)helpfully shift the window over by the taskbar's size. I have no idea why
+                // this happens and it's terrible, but luckily Windows tells me it's done this so
+                // that I can immediately detect and undo it.
+                debug_println!("window position changed to {:?}", position);
+                self.settings.validate_window_position(&self.window, position);
+            }
+            WindowEvent::Resized(size) => {
+                // See above nightmare scenario with the window position. I figure I might as well
+                // do the same thing for size just in case Windows also has some arcane, evil
+                // involuntary resizing behavior.
+                debug_println!("window size changed to {:?}", size);
+                self.settings.validate_window_size(&self.window, size);
+            }
+            WindowEvent::CursorMoved { position, .. } => {
+                self.last_mouse_position = position;
+            }
+            WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, .. } => {
+                let PhysicalPosition { x, y } = self.last_mouse_position;
+                let x = x as usize;
+                let y = y as usize;
+
+                let PhysicalSize { width, height } = self.settings.size();
+                let width = width as usize;
+                let height = height as usize;
+
+                self.settings.set_color(image::hue_alpha_color_from_coordinates(x, y, width, height));
+                self.menu_items.color_pick_button.set_checked(false);
+                handle_color_pick(false, &self.window, &mut self.last_focused_window, false);
+                self.window_scale_dirty = true;
+            }
+            _ => {}
+        }
+
+        self.post_event_work(event_loop);
+    }
+
+    fn device_event(&mut self, _event_loop: &ActiveEventLoop, _device_id: DeviceId, _event: DeviceEvent) {
+    }
+
+    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+    }
+
+    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
+    }
+
+    fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
+    }
+
+    fn memory_warning(&mut self, _event_loop: &ActiveEventLoop) {
+    }
+}
+
+fn build_tray_icon() -> (MenuItems, TrayIcon) {
     // on linux we have to do this in a completely different way
     #[cfg(not(target_os = "linux"))] let tray_menu = Menu::new();
 
@@ -72,14 +350,13 @@ fn main() {
         menu_items.add_to_menu(&submenu);
     }
 
-    // keep the tray icon in an Option so we can take() it later to drop
     // on Linux this MUST be called on the GTK thread, so we have to do some weird hijinks to pass things around
-    #[cfg(not(target_os = "linux"))] let mut tray_icon = {
+    #[cfg(not(target_os = "linux"))] let tray_icon: TrayIcon = {
         let tray_icon_builder = TrayIconBuilder::new()
             .with_menu(Box::new(tray_menu))
             .with_tooltip(ICON_TOOLTIP)
             .with_icon(get_icon());
-        Some(tray_icon_builder.build().unwrap())
+        tray_icon_builder.build().unwrap()
     };
 
     #[cfg(target_os = "linux")] {
@@ -140,13 +417,10 @@ fn main() {
         debug_println!("GTK startup complete");
     }
 
-    // native dialogs block a thread, so we'll spin up a single thread to loop through queued dialogs.
-    // If we ever need to show multiple dialogs, they just get queued.
-    let mut dialog_worker = dialog::spawn_worker();
+    (menu_items, tray_icon)
+}
 
-    let menu_channel = MenuEvent::receiver();
-    event_loop.listen_device_events(DeviceEvents::Always);
-
+fn start_tick_sender(settings: &Settings, event_loop: &EventLoop<UserEvent>) {
     let user_event_sender = event_loop.create_proxy();
     let key_process_interval = settings.tick_interval;
     std::thread::Builder::new()
@@ -156,204 +430,7 @@ fn main() {
                 let _ = user_event_sender.send_event(());
                 std::thread::sleep(key_process_interval);
             }
-        }).unwrap();
-
-    // unsafe note: these three structs MUST live and die together.
-    // It is highly illegal to use the context or surface after the window is dropped.
-    // The context only gets used right here, so that's fine.
-    // As of this writing, none of these get moved. Therefore they all get dropped one after the other at the end of main(), which is safe.
-    let window = Rc::new(init_window(&event_loop, &mut settings));
-    let context = Context::new(window.clone()).unwrap();
-    let mut surface = Surface::new(&context, window.clone()).unwrap();
-
-    // remember some application state that's NOT part of our saved config
-    let mut window_visible = true;
-    let mut force_redraw = false; // if set to true, the next redraw will be forced even for known buffer contents
-    let mut last_mouse_position = PhysicalPosition::default();
-
-    let mut last_focused_window: Option<platform::WindowHandle> = None;
-
-    // pass control to the event loop
-    event_loop.run(move |event, active_event_loop| {
-        // in theory Wait is now the default ControlFlow, so the following isn't needed:
-        // active_event_loop.set_control_flow(ControlFlow::Wait);
-
-        let mut window_position_dirty = false;
-        let mut window_scale_dirty = false;
-
-        match event {
-            Event::WindowEvent { event: WindowEvent::RedrawRequested, .. } => {
-                // failsafe to resize the window before a redraw if necessary
-                // ...and of course it's fucking necessary
-                settings.validate_window_size(&window, window.inner_size());
-                draw_window(&mut surface, &settings, force_redraw);
-                force_redraw = false;
-            }
-            Event::UserEvent(_) => {
-                hotkey_manager.poll_keys();
-                hotkey_manager.process_keys();
-
-                let adjust_mode = menu_items.adjust_button.is_checked();
-                if adjust_mode {
-                    if hotkey_manager.move_up() != 0 {
-                        settings.persisted.window_dy -= hotkey_manager.move_up() as i32;
-                        window_position_dirty = true;
-                    }
-
-                    if hotkey_manager.move_down() != 0 {
-                        settings.persisted.window_dy += hotkey_manager.move_down() as i32;
-                        window_position_dirty = true;
-                    }
-
-                    if hotkey_manager.move_left() != 0 {
-                        settings.persisted.window_dx -= hotkey_manager.move_left() as i32;
-                        window_position_dirty = true;
-                    }
-
-                    if hotkey_manager.move_right() != 0 {
-                        settings.persisted.window_dx += hotkey_manager.move_right() as i32;
-                        window_position_dirty = true;
-                    }
-
-                    if hotkey_manager.cycle_monitor() {
-                        settings.monitor_index = (settings.monitor_index + 1) % window.available_monitors().count();
-                        window_scale_dirty = true;
-                    }
-
-                    if settings.is_scalable() && hotkey_manager.scale_increase() != 0 {
-                        settings.persisted.window_height += hotkey_manager.scale_increase();
-                        settings.persisted.window_width = settings.persisted.window_height;
-                        window_scale_dirty = true;
-                    }
-
-                    if settings.is_scalable() && hotkey_manager.scale_decrease() != 0 {
-                        settings.persisted.window_height = settings.persisted.window_height.checked_sub(hotkey_manager.scale_decrease()).unwrap_or(1).max(1);
-                        settings.persisted.window_width = settings.persisted.window_height;
-                        window_scale_dirty = true;
-                    }
-
-                    // adjust button is already checked
-                    if hotkey_manager.toggle_adjust() {
-                        menu_items.adjust_button.set_checked(false)
-                    }
-                } else if hotkey_manager.toggle_adjust() {
-                    // adjust button is NOT checked
-                    menu_items.adjust_button.set_checked(true)
-                }
-
-                if hotkey_manager.toggle_hidden() {
-                    window_visible = !window_visible;
-                    window.set_visible(window_visible);
-                    if !window_visible {
-                        menu_items.adjust_button.set_checked(false)
-                    }
-                }
-
-                // only enable this hotkey if the color picker is already visible OR if adjust mode is on
-                if hotkey_manager.toggle_color_picker() && (adjust_mode || settings.get_pick_color()) {
-                    let color_pick = settings.toggle_pick_color();
-                    menu_items.color_pick_button.set_checked(color_pick);
-                    handle_color_pick(color_pick, &window, &mut last_focused_window, true);
-                    window_scale_dirty = true;
-                }
-            }
-            Event::WindowEvent { event: WindowEvent::Moved(position), .. } => {
-                // incredibly, if the taskbar is at the top or left of the screen Windows will
-                // (un)helpfully shift the window over by the taskbar's size. I have no idea why
-                // this happens and it's terrible, but luckily Windows tells me it's done this so
-                // that I can immediately detect and undo it.
-                debug_println!("window position changed to {:?}", position);
-                settings.validate_window_position(&window, position);
-            }
-            Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
-                // See above nightmare scenario with the window position. I figure I might as well
-                // do the same thing for size just in case Windows also has some arcane, evil
-                // involuntary resizing behavior.
-                debug_println!("window size changed to {:?}", size);
-                settings.validate_window_size(&window, size);
-            }
-            Event::WindowEvent { event: WindowEvent::CursorMoved { position, .. }, .. } => {
-                last_mouse_position = position;
-            }
-            Event::WindowEvent { event: WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, .. }, .. } => {
-                let PhysicalPosition { x, y } = last_mouse_position;
-                let x = x as usize;
-                let y = y as usize;
-
-                let PhysicalSize { width, height } = settings.size();
-                let width = width as usize;
-                let height = height as usize;
-
-                settings.set_color(image::hue_alpha_color_from_coordinates(x, y, width, height));
-                menu_items.color_pick_button.set_checked(false);
-                handle_color_pick(false, &window, &mut last_focused_window, false);
-                window_scale_dirty = true;
-            }
-            _ => ()
-        }
-
-        if let Ok(path) = dialog_worker.try_recv_file_path() {
-            menu_items.image_pick_button.set_enabled(true);
-
-            if let Some(path) = path {
-                match settings.load_png(path) {
-                    Ok(()) => {
-                        force_redraw = true;
-                        window_scale_dirty = true;
-                    }
-                    Err(e) => dialog::show_warning(format!("Error loading PNG.\n\n{}", e))
-                }
-            }
-        }
-
-        while let Ok(event) = menu_channel.try_recv() {
-            match event.id {
-                id if id == menu_items.exit_button.id() => {
-                    // drop the tray icon, solving the funny Windows issue where it lingers after application close
-                    #[cfg(not(target_os = "linux"))] tray_icon.take();
-                    window.set_visible(false);
-                    if let Err(e) = settings.save() {
-                        dialog::show_warning(format!("Error saving settings to \"{}\".\n\n{}", CONFIG_PATH.display(), e));
-                    }
-
-                    // kill the dialog worker and wait for it to finish
-                    // this makes the application remain open until the user has clicked through any queued dialogs
-                    dialog_worker.shutdown().expect("failed to shut down dialog worker");
-
-                    active_event_loop.exit();
-                    break;
-                }
-                id if id == menu_items.visible_button.id() => {
-                    window.set_visible(menu_items.visible_button.is_checked());
-                }
-                id if id == menu_items.reset_button.id() => {
-                    settings.reset();
-                    force_redraw = true;
-                    window_scale_dirty = true;
-                }
-                id if id == menu_items.color_pick_button.id() => {
-                    let pick_color = menu_items.color_pick_button.is_checked();
-                    settings.set_pick_color(pick_color);
-                    handle_color_pick(pick_color, &window, &mut last_focused_window, false);
-                    window_scale_dirty = true;
-                }
-                id if id == menu_items.image_pick_button.id() => {
-                    menu_items.image_pick_button.set_enabled(false);
-                    dialog::request_png();
-                }
-                id if id == menu_items.about_button.id() => {
-                    dialog::show_info(format!("{}\nversion {} {}", build_constants::APPLICATION_NAME, env!("CARGO_PKG_VERSION"), env!("GIT_COMMIT_HASH")));
-                }
-                _ => (),
-            }
-        }
-
-        if window_scale_dirty {
-            on_window_size_or_position_change(&window, &mut settings);
-        } else if window_position_dirty {
-            on_window_position_change(&window, &mut settings);
-        }
-    }).unwrap();
+        }).unwrap(); // if we fail to spawn a thread something is super wrong and we ought to panic
 }
 
 /// Updates the window state after entering or exiting color picker mode
@@ -368,7 +445,7 @@ fn handle_color_pick(color_pick: bool, window: &Window, last_focused_window: &mu
             // make sure we don't have some weird old window handle saved if we shouldn't be saving focus
             None
         };
-        window.set_cursor_hittest(true).unwrap();
+        window.set_cursor_hittest(true).unwrap(); // fails on non Windows/Mac/Linux platforms
         window.focus_window();
         window.set_cursor_grab(CursorGrabMode::Confined).unwrap(); // if we do this after the window is focused, it'll move the cursor to the window for us.
     } else {
@@ -471,9 +548,9 @@ fn draw_window(surface: &mut Surface<Rc<Window>, Rc<Window>>, settings: &Setting
 }
 
 /// Load a tray icon graphic.
-fn get_icon() -> TrayIcon {
+fn get_icon() -> tray_icon::Icon {
     // simply grab the static byte array that's embedded in the application, which was generated in build.rs
-    TrayIcon::from_rgba(include_bytes!(env!("TRAY_ICON_PATH")).to_vec(), build_constants::TRAY_ICON_DIMENSION, build_constants::TRAY_ICON_DIMENSION).unwrap()
+    tray_icon::Icon::from_rgba(include_bytes!(env!("TRAY_ICON_PATH")).to_vec(), build_constants::TRAY_ICON_DIMENSION, build_constants::TRAY_ICON_DIMENSION).unwrap()
 }
 
 /// Initialize the window. This gives a transparent, borderless window that's always on top and can be clicked through.
