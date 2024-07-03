@@ -7,7 +7,7 @@
 use std::hint::black_box;
 use criterion::{BatchSize, Criterion};
 
-use simple_crosshair_overlay::util::image;
+use simple_crosshair_overlay::private::util::image;
 
 pub fn bench_color_picker(c: &mut Criterion) {
     let mut group = c.benchmark_group("Color Picker Implementations");

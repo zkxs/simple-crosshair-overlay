@@ -14,7 +14,7 @@ use std::marker::PhantomData;
 
 use serde::{Deserialize, Serialize};
 
-use crate::platform::{KeyboardState, KeycodeType};
+use crate::private::platform::{KeyboardState, KeycodeType};
 
 use super::Keycode;
 

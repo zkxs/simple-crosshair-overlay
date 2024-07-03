@@ -13,7 +13,7 @@ A performant native crosshair overlay without unnecessary bloat. Free and open-s
 
 ## Features
 
-- Works on any application that's not fullscreen exclusive. You **must** use windowed or borderless-windowed mode on your game. This was an intentional design choice, as rendering into a fullscreen-exclusive game is not anticheat-compatible.
+- Works on any application that's not fullscreen exclusive. You **must** use windowed or borderless-windowed mode on your game. This was an intentional design choice, as rendering into a fullscreen-exclusive game is not anti-cheat-compatible.
 - Performant: the overlay is only redrawn when you change the crosshair. CPU, GPU, and memory usage are minimal.
 - Minimal UI: managed via a tray icon and hotkeys.
 - Comes with a simple default crosshair that can be scaled and recolored to your preference.
@@ -26,10 +26,13 @@ A performant native crosshair overlay without unnecessary bloat. Free and open-s
 2. Run simple-crosshair-overlay.exe
 3. Optionally, if you want a start menu shortcut you can make one yourself! Simply right-click simple-crosshair-overlay.exe and select "Pin to Start". This will automatically create a shortcut in `%appdata%\Microsoft\Windows\Start Menu\Programs`. 
 
-**MacOS** binaries are available, but completely untested as I lack hardware to test against. See the [MacOS support tracking issue](https://github.com/zkxs/simple-crosshair-overlay/issues/3).
+**macOS** binaries are available, but I lack hardware to test against so I do not know if they work. If you're using simple-crosshair-overlay on macOS please let me know in the [macOS support tracking issue](https://github.com/zkxs/simple-crosshair-overlay/issues/3).
 
-**Linux** is presently unsupported, pending resolution of a few issues. See the [Linux support tracking issue](https://github.com/zkxs/simple-crosshair-overlay/issues/6). Additionally, you must have the following prerequisites installed:
+**Linux** is presently unsupported, pending resolution of a few issues. See the [Linux support tracking issue](https://github.com/zkxs/simple-crosshair-overlay/issues/6) for details.
+<!--
+Additionally, you must have the following prerequisites installed:
 - libappindicator-gtk3
+-->
 
 ## Usage
 

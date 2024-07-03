@@ -14,10 +14,10 @@ use serde::{Deserialize, Serialize};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::window::Window;
 
-use crate::hotkey::KeyBindings;
-use crate::util::dialog::show_warning;
-use crate::util::image::{self, Image};
-use crate::util::numeric::fps_to_tick_interval;
+use crate::private::hotkey::KeyBindings;
+use crate::private::util::dialog::show_warning;
+use crate::private::util::image::{self, Image};
+use crate::private::util::numeric::fps_to_tick_interval;
 
 const DEFAULT_OFFSET_X: i32 = 0;
 const DEFAULT_OFFSET_Y: i32 = 0;
@@ -47,7 +47,7 @@ pub struct PersistedSettings {
     pub window_dy: i32,
     pub window_width: u32,
     pub window_height: u32,
-    #[serde(with = "crate::util::custom_serializer::argb_color")]
+    #[serde(with = "crate::private::util::custom_serializer::argb_color")]
     color: u32,
     #[serde(default = "default_fps")]
     fps: u32,

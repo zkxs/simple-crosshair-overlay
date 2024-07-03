@@ -10,7 +10,7 @@ use std::path::Path;
 
 use png::ColorType;
 
-use crate::util::numeric::{DivCeil, DivFloor};
+use crate::private::util::numeric::{DivCeil, DivFloor};
 
 #[cfg(any(test, feature = "benchmark"))]
 pub mod precise;

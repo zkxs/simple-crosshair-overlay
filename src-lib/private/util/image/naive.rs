@@ -10,7 +10,7 @@
 //! 1. benchmarking comparisons
 //! 2. unit testing known good output
 
-use crate::util::image::hue_value_to_argb;
+use crate::private::util::image::hue_value_to_argb;
 
 #[inline(always)]
 pub fn draw_color_picker(buffer: &mut [u32]) {

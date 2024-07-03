@@ -9,9 +9,9 @@ use std::time::{Duration, Instant};
 
 use criterion::Criterion;
 
-use simple_crosshair_overlay::hotkey::KeyBindings;
-use simple_crosshair_overlay::platform;
-use simple_crosshair_overlay::platform::KeyboardState;
+use simple_crosshair_overlay::private::hotkey::KeyBindings;
+use simple_crosshair_overlay::private::platform;
+use simple_crosshair_overlay::private::platform::KeyboardState;
 
 pub fn bench_key_poll(c: &mut Criterion) {
     let mut group = c.benchmark_group("Key poll");
@@ -19,11 +19,6 @@ pub fn bench_key_poll(c: &mut Criterion) {
     let mut keyboard_state = platform::generic::DeviceQueryKeyboardState::default();
     group.bench_function("device_query", |bencher| {
         bencher.iter(|| keyboard_state.poll())
-    });
-
-    let mut keyboard_state = platform::windows::WinApiKeyboardState::default();
-    group.bench_function("winapi", |bencher| {
-        bencher.iter(|| keyboard_state.poll());
     });
 
     group.finish();
