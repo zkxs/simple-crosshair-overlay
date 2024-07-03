@@ -12,7 +12,7 @@ pub use generic::HotkeyManager;
 #[cfg(target_os = "windows")]
 pub use windows::{get_foreground_window, set_foreground_window, WindowHandle};
 
-use crate::hotkey::Keycode;
+use crate::private::hotkey::Keycode;
 
 pub mod generic; // pub so benchmarking can access
 

@@ -10,10 +10,10 @@ use debug_print::debug_println;
 use winit::event_loop::{DeviceEvents, EventLoop};
 use winit::window::{CursorGrabMode, Window};
 
-use simple_crosshair_overlay::platform;
-use simple_crosshair_overlay::settings::CONFIG_PATH;
-use simple_crosshair_overlay::settings::Settings;
-use simple_crosshair_overlay::util::dialog;
+use simple_crosshair_overlay::private::platform;
+use simple_crosshair_overlay::private::settings::CONFIG_PATH;
+use simple_crosshair_overlay::private::settings::Settings;
+use simple_crosshair_overlay::private::util::dialog;
 
 mod window;
 mod tray;

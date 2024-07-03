@@ -8,9 +8,9 @@
 
 use device_query::{DeviceQuery, DeviceState, Keycode as DeviceQueryKeycode};
 
-use crate::hotkey;
-use crate::hotkey::{KeyBindings, Keycode};
-use crate::platform::{KeyboardState, KeycodeType};
+use crate::private::hotkey;
+use crate::private::hotkey::{KeyBindings, Keycode};
+use crate::private::platform::{KeyboardState, KeycodeType};
 
 /// platform-independent window handle (it's nothing)
 #[derive(Copy, Clone, Debug)]

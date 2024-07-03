@@ -9,9 +9,9 @@ use std::time::{Duration, Instant};
 
 use criterion::Criterion;
 
-use simple_crosshair_overlay::hotkey::KeyBindings;
-use simple_crosshair_overlay::platform;
-use simple_crosshair_overlay::platform::KeyboardState;
+use simple_crosshair_overlay::private::hotkey::KeyBindings;
+use simple_crosshair_overlay::private::platform;
+use simple_crosshair_overlay::private::platform::KeyboardState;
 
 pub fn bench_key_poll(c: &mut Criterion) {
     let mut group = c.benchmark_group("Key poll");

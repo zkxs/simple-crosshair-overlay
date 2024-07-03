@@ -14,11 +14,11 @@ use winit::event::{DeviceEvent, DeviceId, ElementState, MouseButton, StartCause,
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{CursorIcon, Window, WindowId, WindowLevel};
 
-use simple_crosshair_overlay::platform;
-use simple_crosshair_overlay::platform::HotkeyManager;
-use simple_crosshair_overlay::settings::{CONFIG_PATH, RenderMode, Settings};
-use simple_crosshair_overlay::util::{dialog, image};
-use simple_crosshair_overlay::util::dialog::DialogWorker;
+use simple_crosshair_overlay::private::platform;
+use simple_crosshair_overlay::private::platform::HotkeyManager;
+use simple_crosshair_overlay::private::settings::{CONFIG_PATH, RenderMode, Settings};
+use simple_crosshair_overlay::private::util::{dialog, image};
+use simple_crosshair_overlay::private::util::dialog::DialogWorker;
 
 use crate::{build_constants, handle_color_pick, tray};
 use crate::tray::MenuItems;
