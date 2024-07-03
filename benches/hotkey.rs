@@ -21,11 +21,6 @@ pub fn bench_key_poll(c: &mut Criterion) {
         bencher.iter(|| keyboard_state.poll())
     });
 
-    let mut keyboard_state = platform::windows::WinApiKeyboardState::default();
-    group.bench_function("winapi", |bencher| {
-        bencher.iter(|| keyboard_state.poll());
-    });
-
     group.finish();
 }
 
