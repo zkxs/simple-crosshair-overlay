@@ -23,7 +23,7 @@ To check all supported targets for compilation/lint errors, run:
 
 ## Bloat Measurement
 
-1. Temporarily comment out `strip = true` in [Cargo.toml](Cargo.toml)
+1. Install [cargo-bloat](https://github.com/RazrFalcon/cargo-bloat)
 2. Run `cargo +nightly bloat -Z build-std=std --target x86_64-pc-windows-msvc --profile=release-optimized-debug -n 50 --crates`
 
 ## Benchmarks
@@ -33,8 +33,16 @@ Run [benchmarks](benches) with
 
 ## Profiling
 
-1. elevate to administrator privileges
-2. `cargo flamegraph --profile=release-optimized-debug`
+1. Install [flamegraph](https://github.com/flamegraph-rs/flamegraph)
+2. elevate to administrator privileges
+3. `cargo flamegraph --profile=release-optimized-debug`
+
+## Unused Dependencies
+
+1. Install [cargo-udeps](https://github.com/est31/cargo-udeps)
+2. Be able to compile for the target you want to test
+3. This MUST be run under the nightly toolchain
+4. `cargo +nightly udeps`
 
 ## Size-Optimized Build Using Nightly Rust
 
