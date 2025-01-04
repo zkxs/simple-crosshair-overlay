@@ -4,9 +4,9 @@
 
 //! Relating to the settings file loaded on app start and persisted on app close
 
-use std::{fs, io};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use std::{fs, io};
 
 use debug_print::debug_println;
 use lazy_static::lazy_static;
@@ -37,7 +37,11 @@ const fn default_monitor() -> u32 {
 }
 
 lazy_static! {
-    pub static ref CONFIG_PATH: PathBuf = directories::ProjectDirs::from("dev.zkxs", "", "simple-crosshair-overlay").unwrap().config_dir().join("config.toml");
+    pub static ref CONFIG_PATH: PathBuf =
+        directories::ProjectDirs::from("dev.zkxs", "", "simple-crosshair-overlay")
+            .unwrap()
+            .config_dir()
+            .join("config.toml");
 }
 
 /// The actual persisted settings struct
@@ -64,14 +68,20 @@ impl PersistedSettings {
         let color = image::premultiply_alpha(self.color);
 
         // make sure that if the user manually put an empty string in their config we don't explode
-        let filtered_image_path = self.image_path.as_ref()
+        let filtered_image_path = self
+            .image_path
+            .as_ref()
             .filter(|path| !path.as_os_str().is_empty());
 
         let image = if let Some(image_path) = filtered_image_path {
             match image::load_png(image_path.as_path()) {
                 Ok(image) => Some(image),
                 Err(e) => {
-                    show_warning(format!("Failed loading saved image_path \"{}\".\n\n{}", image_path.display(), e));
+                    show_warning(format!(
+                        "Failed loading saved image_path \"{}\".\n\n{}",
+                        image_path.display(),
+                        e
+                    ));
                     None
                 }
             }
@@ -135,9 +145,10 @@ impl Settings {
             RenderMode::Crosshair => {
                 PhysicalSize::new(self.persisted.window_width, self.persisted.window_height)
             }
-            RenderMode::ColorPicker => {
-                PhysicalSize::new(image::COLOR_PICKER_SIZE as u32, image::COLOR_PICKER_SIZE as u32)
-            }
+            RenderMode::ColorPicker => PhysicalSize::new(
+                image::COLOR_PICKER_SIZE as u32,
+                image::COLOR_PICKER_SIZE as u32,
+            ),
         }
     }
 
@@ -213,9 +224,15 @@ impl Settings {
     }
 
     #[inline(always)]
-    fn load_from_path<T>(path: T) -> io::Result<Settings> where T: AsRef<Path> {
+    fn load_from_path<T>(path: T) -> io::Result<Settings>
+    where
+        T: AsRef<Path>,
+    {
         fs::read_to_string(path)
-            .and_then(|string| toml::from_str::<PersistedSettings>(&string).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e)))
+            .and_then(|string| {
+                toml::from_str::<PersistedSettings>(&string)
+                    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+            })
             .map(|settings| settings.load())
     }
 
@@ -224,8 +241,12 @@ impl Settings {
     }
 
     #[inline(always)]
-    fn save_to_path<T>(&self, path: T) -> Result<(), String> where T: AsRef<Path> {
-        let serialized_config = toml::to_string(&self.persisted).expect("failed to serialize settings");
+    fn save_to_path<T>(&self, path: T) -> Result<(), String>
+    where
+        T: AsRef<Path>,
+    {
+        let serialized_config =
+            toml::to_string(&self.persisted).expect("failed to serialize settings");
         fs::write(path, serialized_config).map_err(|e| format!("{e:?}"))
     }
 
@@ -260,20 +281,32 @@ impl Settings {
     /// Compute the correct coordinates of the top-left of the window in order to center the crosshair in the selected monitor
     fn compute_window_coordinates(&self, window: &Window) -> PhysicalPosition<i32> {
         // fall back to primary monitor if the desired monitor index is invalid
-        let monitor = window.available_monitors().nth(self.monitor_index)
+        let monitor = window
+            .available_monitors()
+            .nth(self.monitor_index)
             .unwrap_or_else(|| window.primary_monitor().unwrap());
 
         // grab a bunch of coordinates/sizes and convert them to i32s, as we have some signed math to do
-        let PhysicalPosition { x: monitor_x, y: monitor_y } = monitor.position();
-        let PhysicalSize { width: monitor_width, height: monitor_height } = monitor.size();
+        let PhysicalPosition {
+            x: monitor_x,
+            y: monitor_y,
+        } = monitor.position();
+        let PhysicalSize {
+            width: monitor_width,
+            height: monitor_height,
+        } = monitor.size();
         let monitor_width = i32::try_from(monitor_width).unwrap();
         let monitor_height = i32::try_from(monitor_height).unwrap();
-        let PhysicalSize { width: window_width, height: window_height } = self.size();
+        let PhysicalSize {
+            width: window_width,
+            height: window_height,
+        } = self.size();
         let window_width = i32::try_from(window_width).unwrap();
         let window_height = i32::try_from(window_height).unwrap();
 
         // calculate the coordinates of the center of the monitor, rounding down
-        let (monitor_center_x, monitor_center_y) = image::rectangle_center(monitor_x, monitor_y, monitor_width, monitor_height);
+        let (monitor_center_x, monitor_center_y) =
+            image::rectangle_center(monitor_x, monitor_y, monitor_width, monitor_height);
 
         // adjust by half our window size, as we want the coordinates at which to place the top-left corner of the window
         let window_x = monitor_center_x - (window_width / 2) + self.persisted.window_dx;
@@ -308,7 +341,10 @@ pub enum RenderMode {
     ColorPicker,
 }
 
-impl<T> From<&Option<T>> for RenderMode where T: AsRef<Image> {
+impl<T> From<&Option<T>> for RenderMode
+where
+    T: AsRef<Image>,
+{
     fn from(value: &Option<T>) -> Self {
         if value.is_some() {
             RenderMode::Image
@@ -344,7 +380,9 @@ mod test_config_load {
     #[test]
     fn test_load_png() {
         let mut settings = Settings::load_from_path("tests/resources/test_config.toml").unwrap();
-        settings.load_png("tests/resources/test.png".into()).unwrap();
+        settings
+            .load_png("tests/resources/test.png".into())
+            .unwrap();
     }
 
     /// save config to disk

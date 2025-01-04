@@ -45,7 +45,5 @@ pub fn get_foreground_window() -> Option<WindowHandle> {
 /// this does not handle null pointers, as it shouldn't be possible to get a null inside a `WindowHandle`.
 /// `true` is returned if the foreground window was set successfully.
 pub fn set_foreground_window(window_handle: WindowHandle) -> bool {
-    unsafe {
-        winuser::SetForegroundWindow(window_handle.hwnd()) != 0
-    }
+    unsafe { winuser::SetForegroundWindow(window_handle.hwnd()) != 0 }
 }

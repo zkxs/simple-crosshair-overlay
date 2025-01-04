@@ -27,7 +27,8 @@ pub fn bench_key_poll(c: &mut Criterion) {
 pub fn bench_key_process(c: &mut Criterion) {
     let mut group = c.benchmark_group("Key process");
 
-    let mut hotkey_manager = platform::generic::HotkeyManager::new(&KeyBindings::default()).unwrap();
+    let mut hotkey_manager =
+        platform::generic::HotkeyManager::new(&KeyBindings::default()).unwrap();
 
     group.bench_function("bitmask", |bencher| {
         bencher.iter_custom(|iters| {

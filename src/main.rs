@@ -11,12 +11,12 @@ use winit::event_loop::{DeviceEvents, EventLoop};
 use winit::window::{CursorGrabMode, Window};
 
 use simple_crosshair_overlay::private::platform;
-use simple_crosshair_overlay::private::settings::CONFIG_PATH;
 use simple_crosshair_overlay::private::settings::Settings;
+use simple_crosshair_overlay::private::settings::CONFIG_PATH;
 use simple_crosshair_overlay::private::util::dialog;
 
-mod window;
 mod tray;
+mod window;
 
 static ICON_TOOLTIP: &str = "Simple Crosshair Overlay";
 
@@ -37,7 +37,11 @@ fn main() {
         Ok(settings) => settings,
         Err(e) if e.kind() == io::ErrorKind::NotFound => Settings::default(), // generate new settings file when it doesn't exist
         Err(e) => {
-            dialog::show_warning(format!("Error loading settings file \"{}\". Resetting to default settings.\n\n{}", CONFIG_PATH.display(), e));
+            dialog::show_warning(format!(
+                "Error loading settings file \"{}\". Resetting to default settings.\n\n{}",
+                CONFIG_PATH.display(),
+                e
+            ));
             Settings::default()
         }
     };
@@ -60,18 +64,22 @@ fn start_tick_sender(settings: &Settings, event_loop: &EventLoop<window::UserEve
     let key_process_interval = settings.tick_interval;
     std::thread::Builder::new()
         .name("tick-sender".to_string())
-        .spawn(move || {
-            loop {
-                let _ = user_event_sender.send_event(());
-                std::thread::sleep(key_process_interval);
-            }
-        }).unwrap(); // if we fail to spawn a thread something is super wrong and we ought to panic
+        .spawn(move || loop {
+            let _ = user_event_sender.send_event(());
+            std::thread::sleep(key_process_interval);
+        })
+        .unwrap(); // if we fail to spawn a thread something is super wrong and we ought to panic
 }
 
 /// Updates the window state after entering or exiting color picker mode
 ///
 /// If `save_focused` is `true`, this will make a best-effort to restore the previously focused window next time we exit color pick mode.
-fn handle_color_pick(color_pick: bool, window: &Window, last_focused_window: &mut Option<platform::WindowHandle>, save_focused: bool) {
+fn handle_color_pick(
+    color_pick: bool,
+    window: &Window,
+    last_focused_window: &mut Option<platform::WindowHandle>,
+    save_focused: bool,
+) {
     if color_pick {
         *last_focused_window = if save_focused {
             // back up the last-focused window right before we focus ourself

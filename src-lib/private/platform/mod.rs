@@ -6,9 +6,9 @@
 
 use std::fmt::Debug;
 
+pub use generic::HotkeyManager;
 #[cfg(not(target_os = "windows"))]
 pub use generic::{get_foreground_window, set_foreground_window, WindowHandle};
-pub use generic::HotkeyManager;
 #[cfg(target_os = "windows")]
 pub use windows::{get_foreground_window, set_foreground_window, WindowHandle};
 
@@ -20,7 +20,10 @@ pub mod generic; // pub so benchmarking can access
 pub mod windows; // pub so benchmarking can access
 
 /// `T` is the type used to represent keycodes internally
-pub trait KeyboardState<T>: Default where T: KeycodeType {
+pub trait KeyboardState<T>: Default
+where
+    T: KeycodeType,
+{
     /// update internal keyboard state from keyboard
     fn poll(&mut self);
 

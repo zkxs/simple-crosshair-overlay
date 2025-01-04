@@ -16,12 +16,12 @@ use winit::window::{CursorIcon, Window, WindowId, WindowLevel};
 
 use simple_crosshair_overlay::private::platform;
 use simple_crosshair_overlay::private::platform::HotkeyManager;
-use simple_crosshair_overlay::private::settings::{CONFIG_PATH, RenderMode, Settings};
-use simple_crosshair_overlay::private::util::{dialog, image};
+use simple_crosshair_overlay::private::settings::{RenderMode, Settings, CONFIG_PATH};
 use simple_crosshair_overlay::private::util::dialog::DialogWorker;
+use simple_crosshair_overlay::private::util::{dialog, image};
 
-use crate::{build_constants, handle_color_pick, tray};
 use crate::tray::MenuItems;
+use crate::{build_constants, handle_color_pick, tray};
 
 pub type UserEvent = ();
 type Surface = softbuffer::Surface<Rc<Window>, Rc<Window>>;
@@ -61,20 +61,18 @@ impl Context {
         let window = Rc::new(init_window(active_event_loop, settings));
         let context = softbuffer::Context::new(window.clone()).unwrap();
         let surface: Surface = Surface::new(&context, window.clone()).unwrap();
-        Context {
-            window,
-            surface,
-        }
+        Context { window, surface }
     }
 }
 
 impl<'a> State<'a> {
     pub fn new(settings: Settings, _event_loop: &EventLoop<UserEvent>) -> Self {
         // HotkeyManager has a decent quantity of data in it, but again it never really gets moved so we can just leave it on the stack
-        let hotkey_manager: HotkeyManager = HotkeyManager::new(&settings.persisted.key_bindings).unwrap_or_else(|e| {
-            dialog::show_warning(format!("{e}\n\nUsing default hotkeys."));
-            HotkeyManager::default()
-        });
+        let hotkey_manager: HotkeyManager = HotkeyManager::new(&settings.persisted.key_bindings)
+            .unwrap_or_else(|e| {
+                dialog::show_warning(format!("{e}\n\nUsing default hotkeys."));
+                HotkeyManager::default()
+            });
 
         let (menu_items, tray_icon) = tray::build_tray_icon();
         State {
@@ -106,7 +104,7 @@ impl<'a> State<'a> {
                         self.force_redraw = true;
                         self.window_scale_dirty = true;
                     }
-                    Err(e) => dialog::show_warning(format!("Error loading PNG.\n\n{}", e))
+                    Err(e) => dialog::show_warning(format!("Error loading PNG.\n\n{}", e)),
                 }
             }
         }
@@ -115,15 +113,22 @@ impl<'a> State<'a> {
             match event.id {
                 id if id == self.menu_items.exit_button.id() => {
                     // drop the tray icon, solving the funny Windows issue where it lingers after application close
-                    #[cfg(not(target_os = "linux"))] self.tray_icon.take();
+                    #[cfg(not(target_os = "linux"))]
+                    self.tray_icon.take();
                     window.set_visible(false);
                     if let Err(e) = self.settings.save() {
-                        dialog::show_warning(format!("Error saving settings to \"{}\".\n\n{}", CONFIG_PATH.display(), e));
+                        dialog::show_warning(format!(
+                            "Error saving settings to \"{}\".\n\n{}",
+                            CONFIG_PATH.display(),
+                            e
+                        ));
                     }
 
                     // kill the dialog worker and wait for it to finish
                     // this makes the application remain open until the user has clicked through any queued dialogs
-                    self.dialog_worker.shutdown().expect("failed to shut down dialog worker");
+                    self.dialog_worker
+                        .shutdown()
+                        .expect("failed to shut down dialog worker");
 
                     active_event_loop.exit();
                     break;
@@ -147,7 +152,12 @@ impl<'a> State<'a> {
                     dialog::request_png();
                 }
                 id if id == self.menu_items.about_button.id() => {
-                    dialog::show_info(format!("{}\nversion {} {}", build_constants::APPLICATION_NAME, env!("CARGO_PKG_VERSION"), env!("GIT_COMMIT_HASH")));
+                    dialog::show_info(format!(
+                        "{}\nversion {} {}",
+                        build_constants::APPLICATION_NAME,
+                        env!("CARGO_PKG_VERSION"),
+                        env!("GIT_COMMIT_HASH")
+                    ));
                 }
                 _ => (),
             }
@@ -204,7 +214,8 @@ impl<'a> ApplicationHandler<UserEvent> for State<'a> {
             }
 
             if self.hotkey_manager.cycle_monitor() {
-                self.settings.monitor_index = (self.settings.monitor_index + 1) % window.available_monitors().count();
+                self.settings.monitor_index =
+                    (self.settings.monitor_index + 1) % window.available_monitors().count();
                 self.window_scale_dirty = true;
             }
 
@@ -215,7 +226,13 @@ impl<'a> ApplicationHandler<UserEvent> for State<'a> {
             }
 
             if self.settings.is_scalable() && self.hotkey_manager.scale_decrease() != 0 {
-                self.settings.persisted.window_height = self.settings.persisted.window_height.checked_sub(self.hotkey_manager.scale_decrease()).unwrap_or(1).max(1);
+                self.settings.persisted.window_height = self
+                    .settings
+                    .persisted
+                    .window_height
+                    .checked_sub(self.hotkey_manager.scale_decrease())
+                    .unwrap_or(1)
+                    .max(1);
                 self.settings.persisted.window_width = self.settings.persisted.window_height;
                 self.window_scale_dirty = true;
             }
@@ -238,7 +255,9 @@ impl<'a> ApplicationHandler<UserEvent> for State<'a> {
         }
 
         // only enable this hotkey if the color picker is already visible OR if adjust mode is on
-        if self.hotkey_manager.toggle_color_picker() && (adjust_mode || self.settings.get_pick_color()) {
+        if self.hotkey_manager.toggle_color_picker()
+            && (adjust_mode || self.settings.get_pick_color())
+        {
             let color_pick = self.settings.toggle_pick_color();
             self.menu_items.color_pick_button.set_checked(color_pick);
             handle_color_pick(color_pick, window, &mut self.last_focused_window, true);
@@ -248,14 +267,20 @@ impl<'a> ApplicationHandler<UserEvent> for State<'a> {
         self.post_event_work(event_loop);
     }
 
-    fn window_event(&mut self, event_loop: &ActiveEventLoop, _window_id: WindowId, event: WindowEvent) {
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        event: WindowEvent,
+    ) {
         let context: &mut Context = self.context.as_mut().unwrap();
 
         match event {
             WindowEvent::RedrawRequested => {
                 // failsafe to resize the window before a redraw if necessary
                 // ...and of course it's fucking necessary
-                self.settings.validate_window_size(&context.window, context.window.inner_size());
+                self.settings
+                    .validate_window_size(&context.window, context.window.inner_size());
                 draw_window(&mut context.surface, &self.settings, self.force_redraw);
                 self.force_redraw = false;
             }
@@ -265,7 +290,8 @@ impl<'a> ApplicationHandler<UserEvent> for State<'a> {
                 // this happens and it's terrible, but luckily Windows tells me it's done this so
                 // that I can immediately detect and undo it.
                 debug_println!("window position changed to {:?}", position);
-                self.settings.validate_window_position(&context.window, position);
+                self.settings
+                    .validate_window_position(&context.window, position);
             }
             WindowEvent::Resized(size) => {
                 // See above nightmare scenario with the window position. I figure I might as well
@@ -277,7 +303,11 @@ impl<'a> ApplicationHandler<UserEvent> for State<'a> {
             WindowEvent::CursorMoved { position, .. } => {
                 self.last_mouse_position = position;
             }
-            WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, .. } => {
+            WindowEvent::MouseInput {
+                state: ElementState::Pressed,
+                button: MouseButton::Left,
+                ..
+            } => {
                 let PhysicalPosition { x, y } = self.last_mouse_position;
                 let x = x as usize;
                 let y = y as usize;
@@ -286,7 +316,8 @@ impl<'a> ApplicationHandler<UserEvent> for State<'a> {
                 let width = width as usize;
                 let height = height as usize;
 
-                self.settings.set_color(image::hue_alpha_color_from_coordinates(x, y, width, height));
+                self.settings
+                    .set_color(image::hue_alpha_color_from_coordinates(x, y, width, height));
                 self.menu_items.color_pick_button.set_checked(false);
                 handle_color_pick(false, &context.window, &mut self.last_focused_window, false);
                 self.window_scale_dirty = true;
@@ -297,7 +328,13 @@ impl<'a> ApplicationHandler<UserEvent> for State<'a> {
         self.post_event_work(event_loop);
     }
 
-    fn device_event(&mut self, _event_loop: &ActiveEventLoop, _device_id: DeviceId, _event: DeviceEvent) {}
+    fn device_event(
+        &mut self,
+        _event_loop: &ActiveEventLoop,
+        _device_id: DeviceId,
+        _event: DeviceEvent,
+    ) {
+    }
 
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {}
 
@@ -336,18 +373,24 @@ fn on_window_position_change(window: &Window, settings: &mut Settings) {
 /// redraws the buffer if it's uninitialized, but redraw can be forced by setting the `force`
 /// parameter to `true`.
 fn draw_window(surface: &mut Surface, settings: &Settings, force: bool) {
-    let PhysicalSize { width: window_width, height: window_height } = settings.size();
-    surface.resize(
-        NonZeroU32::new(window_width).unwrap(),
-        NonZeroU32::new(window_height).unwrap(),
-    ).unwrap();
+    let PhysicalSize {
+        width: window_width,
+        height: window_height,
+    } = settings.size();
+    surface
+        .resize(
+            NonZeroU32::new(window_width).unwrap(),
+            NonZeroU32::new(window_height).unwrap(),
+        )
+        .unwrap();
 
     let width = window_width as usize;
     let height = window_height as usize;
 
     let mut buffer = surface.buffer_mut().unwrap();
 
-    if force || buffer.age() == 0 { // only redraw if the buffer is uninitialized OR redraw is being forced
+    if force || buffer.age() == 0 {
+        // only redraw if the buffer is uninitialized OR redraw is being forced
         match settings.render_mode {
             RenderMode::Image => {
                 // draw our image
@@ -413,14 +456,16 @@ fn init_window(active_event_loop: &ActiveEventLoop, settings: &mut Settings) -> 
         .with_inner_size(PhysicalSize::new(1, 1)) // this might flicker so make it very tiny
         .with_active(false);
 
-    #[cfg(target_os = "windows")] let window_attributes = {
+    #[cfg(target_os = "windows")]
+    let window_attributes = {
         use winit::platform::windows::WindowAttributesExtWindows;
         window_attributes
             .with_drag_and_drop(false)
             .with_skip_taskbar(true)
     };
 
-    #[cfg(target_os = "macos")] let window_attributes = {
+    #[cfg(target_os = "macos")]
+    let window_attributes = {
         use winit::platform::macos::WindowAttributesExtMacOS;
         window_attributes
             .with_title_hidden(true)
@@ -428,8 +473,7 @@ fn init_window(active_event_loop: &ActiveEventLoop, settings: &mut Settings) -> 
             .with_has_shadow(false)
     };
 
-    let window = active_event_loop.create_window(window_attributes)
-        .unwrap();
+    let window = active_event_loop.create_window(window_attributes).unwrap();
 
     // contrary to all my expectations this call appears to work reliably
     settings.set_window_position(&window);

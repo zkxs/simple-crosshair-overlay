@@ -52,7 +52,6 @@ impl DialogWorker {
         let _ = DIALOG_REQUEST_SENDER.with(|sender| sender.send(DialogRequest::Terminate));
         self.join_handle.take()?.join().ok()
     }
-
 }
 
 /// show a native popup with an info icon + sound
@@ -110,7 +109,8 @@ pub fn spawn_worker() -> DialogWorker {
                     DialogRequest::Terminate => break,
                 }
             }
-        }).unwrap();
+        })
+        .unwrap();
 
     DialogWorker {
         join_handle: Some(join_handle), // we take() from this later

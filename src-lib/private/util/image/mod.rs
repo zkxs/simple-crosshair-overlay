@@ -4,9 +4,9 @@
 
 //! Image processing and color utilities
 
-use std::{io, mem};
 use std::fs::File;
 use std::path::Path;
+use std::{io, mem};
 
 use png::ColorType;
 
@@ -32,12 +32,17 @@ const COLOR_PICKER_NUM_SECTIONS: u8 = 6;
 /// floor(256/6)
 const COLOR_PICKER_SECTION_WIDTH: usize = 42;
 /// side-length of the color picker box
-pub const COLOR_PICKER_SIZE: usize = COLOR_PICKER_SECTION_WIDTH * (COLOR_PICKER_NUM_SECTIONS as usize);
+pub const COLOR_PICKER_SIZE: usize =
+    COLOR_PICKER_SECTION_WIDTH * (COLOR_PICKER_NUM_SECTIONS as usize);
 
 #[inline(always)]
 pub fn draw_color_picker(buffer: &mut [u32]) {
     const BUFFER_SIZE: usize = COLOR_PICKER_SIZE * COLOR_PICKER_SIZE;
-    debug_assert_eq!(buffer.len(), BUFFER_SIZE, "draw_color_picker() passed buffer of wrong size");
+    debug_assert_eq!(
+        buffer.len(),
+        BUFFER_SIZE,
+        "draw_color_picker() passed buffer of wrong size"
+    );
     const MAX_VALUE: u8 = 255;
 
     const SECTION_0: usize = 0;
@@ -58,12 +63,18 @@ pub fn draw_color_picker(buffer: &mut [u32]) {
             let ramp_down_times_value = multiply_color_channels_u8(ramp_down, value);
 
             // write six pixels at once
-            buffer[row_offset + SECTION_0 + column_offset] = u32::from_le_bytes([0, ramp_up_times_value, value, 255]);
-            buffer[row_offset + SECTION_1 + column_offset] = u32::from_le_bytes([0, value, ramp_down_times_value, 255]);
-            buffer[row_offset + SECTION_2 + column_offset] = u32::from_le_bytes([ramp_up_times_value, value, 0, 255]);
-            buffer[row_offset + SECTION_3 + column_offset] = u32::from_le_bytes([value, ramp_down_times_value, 0, 255]);
-            buffer[row_offset + SECTION_4 + column_offset] = u32::from_le_bytes([value, 0, ramp_up_times_value, 255]);
-            buffer[row_offset + SECTION_5 + column_offset] = u32::from_le_bytes([ramp_down_times_value, 0, value, 255]);
+            buffer[row_offset + SECTION_0 + column_offset] =
+                u32::from_le_bytes([0, ramp_up_times_value, value, 255]);
+            buffer[row_offset + SECTION_1 + column_offset] =
+                u32::from_le_bytes([0, value, ramp_down_times_value, 255]);
+            buffer[row_offset + SECTION_2 + column_offset] =
+                u32::from_le_bytes([ramp_up_times_value, value, 0, 255]);
+            buffer[row_offset + SECTION_3 + column_offset] =
+                u32::from_le_bytes([value, ramp_down_times_value, 0, 255]);
+            buffer[row_offset + SECTION_4 + column_offset] =
+                u32::from_le_bytes([value, 0, ramp_up_times_value, 255]);
+            buffer[row_offset + SECTION_5 + column_offset] =
+                u32::from_le_bytes([ramp_down_times_value, 0, value, 255]);
 
             ramp_up = ramp_up.wrapping_add(COLOR_PICKER_NUM_SECTIONS);
             ramp_down = ramp_down.wrapping_sub(COLOR_PICKER_NUM_SECTIONS);
@@ -96,11 +107,23 @@ pub fn hue_value_to_argb(hue: u8, value: u8) -> u32 {
 
     let [r, g, b] = match hue {
         hue if hue < SECTION_1 => [value, multiply_color_channels_u8(raw_hue, value), 0],
-        hue if hue < SECTION_2 => [multiply_color_channels_u8(MAX_COLOR - raw_hue, value), value, 0],
+        hue if hue < SECTION_2 => [
+            multiply_color_channels_u8(MAX_COLOR - raw_hue, value),
+            value,
+            0,
+        ],
         hue if hue < SECTION_3 => [0, value, multiply_color_channels_u8(raw_hue, value)],
-        hue if hue < SECTION_4 => [0, multiply_color_channels_u8(MAX_COLOR - raw_hue, value), value],
+        hue if hue < SECTION_4 => [
+            0,
+            multiply_color_channels_u8(MAX_COLOR - raw_hue, value),
+            value,
+        ],
         hue if hue < SECTION_5 => [multiply_color_channels_u8(raw_hue, value), 0, value],
-        _ => [value, 0, multiply_color_channels_u8(MAX_COLOR - raw_hue, value)],
+        _ => [
+            value,
+            0,
+            multiply_color_channels_u8(MAX_COLOR - raw_hue, value),
+        ],
     };
 
     u32::from_le_bytes([b, g, r, MAX_COLOR])
@@ -173,14 +196,12 @@ fn rgba_to_argb(rgba_color: u32) -> u32 {
     let [r, g, b, a] = rgba_color.to_le_bytes();
 
     // We want to pack the data back into ARGB. Provided in LE order that's BGRA.
-    u32::from_le_bytes(
-        [
-            multiply_color_channels_u8(b, a),
-            multiply_color_channels_u8(g, a),
-            multiply_color_channels_u8(r, a),
-            a
-        ]
-    )
+    u32::from_le_bytes([
+        multiply_color_channels_u8(b, a),
+        multiply_color_channels_u8(g, a),
+        multiply_color_channels_u8(r, a),
+        a,
+    ])
 }
 
 /// Convert BE RGBA to LE ARGB, premultiplying alpha where required by the target platform.
@@ -200,14 +221,12 @@ fn rgba_to_argb(rgba_color: u32) -> u32 {
 #[cfg(target_os = "windows")]
 pub fn premultiply_alpha(color: u32) -> u32 {
     let [b, g, r, a] = color.to_le_bytes();
-    u32::from_le_bytes(
-        [
-            multiply_color_channels_u8(b, a),
-            multiply_color_channels_u8(g, a),
-            multiply_color_channels_u8(r, a),
-            a
-        ]
-    )
+    u32::from_le_bytes([
+        multiply_color_channels_u8(b, a),
+        multiply_color_channels_u8(g, a),
+        multiply_color_channels_u8(r, a),
+        a,
+    ])
 }
 
 /// Premultiply alpha if required by current platform. On this platform this is a no-op.
@@ -238,7 +257,10 @@ pub fn multiply_color_channels_u8(a: u8, b: u8) -> u8 {
 }
 
 /// load a png file into an in-memory image
-pub fn load_png<T>(path: T) -> io::Result<Box<Image>> where T: AsRef<Path> {
+pub fn load_png<T>(path: T) -> io::Result<Box<Image>>
+where
+    T: AsRef<Path>,
+{
     let file = File::open(path)?;
     let decoder = png::Decoder::new(file);
     let mut reader = decoder.read_info()?;
@@ -248,7 +270,8 @@ pub fn load_png<T>(path: T) -> io::Result<Box<Image>> where T: AsRef<Path> {
     // This is done because it's not safe to cast a &[u8] into a &[u32] due to possible u32 misalignment,
     // however it is completely safe to cast a &[u32] into a &[u8].
     const RATIO: usize = mem::size_of::<u32>() / mem::size_of::<u8>(); // this is going to be 4 always, but it's good practice to not use a magic number here
-    let mut buf_as_u32: Vec<u32> = Vec::with_capacity(reader.output_buffer_size().div_ceil_placeholder(RATIO));
+    let mut buf_as_u32: Vec<u32> =
+        Vec::with_capacity(reader.output_buffer_size().div_ceil_placeholder(RATIO));
     #[allow(clippy::uninit_vec)]
     unsafe {
         // there is no requirement I send a zeroed buffer to the PNG decoding library.
@@ -256,7 +279,10 @@ pub fn load_png<T>(path: T) -> io::Result<Box<Image>> where T: AsRef<Path> {
     }
 
     // a little check to make sure div_ceil isn't fucked up. Which it's definitely not, because I eyeballed it really sternly.
-    debug_assert!(buf_as_u32.len() * RATIO >= reader.output_buffer_size(), "buffer was unexpectedly not large enough for image decode");
+    debug_assert!(
+        buf_as_u32.len() * RATIO >= reader.output_buffer_size(),
+        "buffer was unexpectedly not large enough for image decode"
+    );
 
     // I'm just transmuting color data between u32 and [u8; 4] packing. No risk.
     let buf_as_u8: &mut [u8] = unsafe {
@@ -274,7 +300,8 @@ pub fn load_png<T>(path: T) -> io::Result<Box<Image>> where T: AsRef<Path> {
     }
 
     // post-process color layout in each pixel
-    buf_as_u32.iter_mut()
+    buf_as_u32
+        .iter_mut()
         .for_each(|pixel| *pixel = rgba_to_argb(pixel.to_owned()));
 
     let image = Image {
@@ -295,7 +322,7 @@ pub fn load_png<T>(path: T) -> io::Result<Box<Image>> where T: AsRef<Path> {
 pub fn rectangle_center(x: i32, y: i32, width: i32, height: i32) -> (i32, i32) {
     (
         x + width.div_floor_placeholder(2),
-        y + height.div_floor_placeholder(2)
+        y + height.div_floor_placeholder(2),
     )
 }
 
@@ -364,7 +391,9 @@ mod test_pixel_format {
         // test for some every `c` for various predefined `a`
         // what's important here is to contrive c*a/255 for results that will round in different ways while avoiding an exhaustive test, as that'd be slow
         for c in 0..=255 {
-            for a in [0, 1, 2, 3, 4, 20, 30, 40, 50, 60, 61, 62, 63, 64, 77, 127, 128, 254, 255] {
+            for a in [
+                0, 1, 2, 3, 4, 20, 30, 40, 50, 60, 61, 62, 63, 64, 77, 127, 128, 254, 255,
+            ] {
                 let precise_result = precise::multiply_color_channels_u8(c, a);
                 let actual_result = multiply_color_channels_u8(c, a);
                 assert_eq!(actual_result, precise_result, "mismatch for c={c} a={a}")
@@ -410,7 +439,10 @@ mod test_rectangle_center {
     /// my actual 1080p monitor setup
     #[test]
     fn test_1080p_top_centered() {
-        assert_eq!(rectangle_center(397, -1080, 1920, 1080), (397 + 960, -1080 + 540));
+        assert_eq!(
+            rectangle_center(397, -1080, 1920, 1080),
+            (397 + 960, -1080 + 540)
+        );
     }
 }
 
@@ -450,7 +482,14 @@ mod test_color_picker {
             let actual_argb = hue_value_to_argb(hue, 255);
             let expected_argb = precise::hsv_to_argb(hue, 255, 255);
             let error = color_error(actual_argb, expected_argb);
-            assert!(error <= max_error, "precise and optimized hv->argb differ: @ hue {}, {:08X} != {:08X}, error={}", hue, actual_argb, expected_argb, error);
+            assert!(
+                error <= max_error,
+                "precise and optimized hv->argb differ: @ hue {}, {:08X} != {:08X}, error={}",
+                hue,
+                actual_argb,
+                expected_argb,
+                error
+            );
         }
     }
 
@@ -462,7 +501,14 @@ mod test_color_picker {
             let actual_argb = hue_alpha_to_argb(hue, 255);
             let expected_argb = precise::hsv_to_argb(hue, 255, 255);
             let error = color_error(actual_argb, expected_argb);
-            assert!(error <= max_error, "precise and optimized ha->argb differ: @ hue {}, {:08X} != {:08X}, error={}", hue, actual_argb, expected_argb, error);
+            assert!(
+                error <= max_error,
+                "precise and optimized ha->argb differ: @ hue {}, {:08X} != {:08X}, error={}",
+                hue,
+                actual_argb,
+                expected_argb,
+                error
+            );
         }
     }
 
@@ -474,7 +520,14 @@ mod test_color_picker {
             let actual_argb = hue_value_to_argb(255, value);
             let expected_argb = precise::hsv_to_argb(255, 255, value);
             let error = color_error(actual_argb, expected_argb);
-            assert!(error <= max_error, "precise and optimized hv->argb differ: @ value {}, {:08X} != {:08X}, error={}", value, actual_argb, expected_argb, error);
+            assert!(
+                error <= max_error,
+                "precise and optimized hv->argb differ: @ value {}, {:08X} != {:08X}, error={}",
+                value,
+                actual_argb,
+                expected_argb,
+                error
+            );
         }
     }
 
@@ -533,21 +586,14 @@ mod test_color_picker {
             (((g - b) / c) % 6.0) / 60.0
         } else if x_max == g {
             (((b - r) / c) + 2.0) / 60.0
-        } else { // x_max must therefore equal b
+        } else {
+            // x_max must therefore equal b
             (((r - g) / c) + 4.0) / 60.0
         };
 
-        let s = if x_max == 0.0 {
-            0.0
-        } else {
-            c / x_max
-        };
+        let s = if x_max == 0.0 { 0.0 } else { c / x_max };
 
-        HsvColor {
-            h,
-            s,
-            v: x_max,
-        }
+        HsvColor { h, s, v: x_max }
     }
 
     fn check_picked_color(buffer: &[u32], x: usize, y: usize) {
@@ -561,8 +607,14 @@ mod test_color_picker {
         let calculated_color = x_y_to_argb_252(x as u8, y as u8);
         let actual_color = rgb_to_hsv_precise(calculated_color);
         let [_, _, _, actual_alpha] = calculated_color.to_le_bytes();
-        assert_eq!(expected_color, actual_color, "color did not match at ({x}, {y})");
-        assert_eq!(expected_alpha, actual_alpha, "alpha did not match at ({x}, {y})");
+        assert_eq!(
+            expected_color, actual_color,
+            "color did not match at ({x}, {y})"
+        );
+        assert_eq!(
+            expected_alpha, actual_alpha,
+            "alpha did not match at ({x}, {y})"
+        );
     }
 }
 

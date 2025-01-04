@@ -7,13 +7,15 @@ pub mod argb_color {
     use serde::{Deserialize, Deserializer, Serializer};
 
     pub fn serialize<S>(color: &u32, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         serializer.serialize_str(&format!("{color:08X}"))
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<u32, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
         u32::from_str_radix(&s, 16).map_err(serde::de::Error::custom)

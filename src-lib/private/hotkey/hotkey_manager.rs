@@ -65,7 +65,10 @@ impl Default for KeyBindings {
     }
 }
 
-struct KeyBuffer<K> where K: KeycodeType {
+struct KeyBuffer<K>
+where
+    K: KeycodeType,
+{
     lookup_table: Vec<Bitmask>,
     up_mask: Bitmask,
     down_mask: Bitmask,
@@ -82,42 +85,71 @@ struct KeyBuffer<K> where K: KeycodeType {
     _keycode_type_marker: PhantomData<K>,
 }
 
-impl<K> KeyBuffer<K> where K: KeycodeType {
+impl<K> KeyBuffer<K>
+where
+    K: KeycodeType,
+{
     fn new(key_bindings: &KeyBindings) -> Result<KeyBuffer<K>, &'static str> {
         // build the lookup table and compute each hotkeys bitmask combination
         let mut bit = 1;
         let mut lookup_table = vec![0; K::num_variants()];
-        let up_mask = Self::update_key_buffer_values(&key_bindings.up, &mut bit, &mut lookup_table)?;
-        let down_mask = Self::update_key_buffer_values(&key_bindings.down, &mut bit, &mut lookup_table)?;
-        let left_mask = Self::update_key_buffer_values(&key_bindings.left, &mut bit, &mut lookup_table)?;
-        let right_mask = Self::update_key_buffer_values(&key_bindings.right, &mut bit, &mut lookup_table)?;
-        let cycle_monitor_mask = Self::update_key_buffer_values(&key_bindings.cycle_monitor, &mut bit, &mut lookup_table)?;
-        let scale_increase_mask = Self::update_key_buffer_values(&key_bindings.scale_increase, &mut bit, &mut lookup_table)?;
-        let scale_decrease_mask = Self::update_key_buffer_values(&key_bindings.scale_decrease, &mut bit, &mut lookup_table)?;
-        let toggle_hidden_mask = Self::update_key_buffer_values(&key_bindings.toggle_hidden, &mut bit, &mut lookup_table)?;
-        let toggle_adjust_mask = Self::update_key_buffer_values(&key_bindings.toggle_adjust, &mut bit, &mut lookup_table)?;
-        let toggle_color_picker_mask = Self::update_key_buffer_values(&key_bindings.toggle_color_picker, &mut bit, &mut lookup_table)?;
+        let up_mask =
+            Self::update_key_buffer_values(&key_bindings.up, &mut bit, &mut lookup_table)?;
+        let down_mask =
+            Self::update_key_buffer_values(&key_bindings.down, &mut bit, &mut lookup_table)?;
+        let left_mask =
+            Self::update_key_buffer_values(&key_bindings.left, &mut bit, &mut lookup_table)?;
+        let right_mask =
+            Self::update_key_buffer_values(&key_bindings.right, &mut bit, &mut lookup_table)?;
+        let cycle_monitor_mask = Self::update_key_buffer_values(
+            &key_bindings.cycle_monitor,
+            &mut bit,
+            &mut lookup_table,
+        )?;
+        let scale_increase_mask = Self::update_key_buffer_values(
+            &key_bindings.scale_increase,
+            &mut bit,
+            &mut lookup_table,
+        )?;
+        let scale_decrease_mask = Self::update_key_buffer_values(
+            &key_bindings.scale_decrease,
+            &mut bit,
+            &mut lookup_table,
+        )?;
+        let toggle_hidden_mask = Self::update_key_buffer_values(
+            &key_bindings.toggle_hidden,
+            &mut bit,
+            &mut lookup_table,
+        )?;
+        let toggle_adjust_mask = Self::update_key_buffer_values(
+            &key_bindings.toggle_adjust,
+            &mut bit,
+            &mut lookup_table,
+        )?;
+        let toggle_color_picker_mask = Self::update_key_buffer_values(
+            &key_bindings.toggle_color_picker,
+            &mut bit,
+            &mut lookup_table,
+        )?;
         let any_movement_mask = up_mask | down_mask | left_mask | right_mask;
         let any_scale_mask = scale_increase_mask | scale_decrease_mask;
 
-        Ok(
-            KeyBuffer {
-                lookup_table,
-                up_mask,
-                down_mask,
-                left_mask,
-                right_mask,
-                cycle_monitor_mask,
-                scale_increase_mask,
-                scale_decrease_mask,
-                toggle_hidden_mask,
-                toggle_adjust_mask,
-                toggle_color_picker_mask,
-                any_movement_mask,
-                any_scale_mask,
-                _keycode_type_marker: Default::default(),
-            }
-        )
+        Ok(KeyBuffer {
+            lookup_table,
+            up_mask,
+            down_mask,
+            left_mask,
+            right_mask,
+            cycle_monitor_mask,
+            scale_increase_mask,
+            scale_decrease_mask,
+            toggle_hidden_mask,
+            toggle_adjust_mask,
+            toggle_color_picker_mask,
+            any_movement_mask,
+            any_scale_mask,
+            _keycode_type_marker: Default::default(),
+        })
     }
 
     /// - `key_combination`: a set of keys to use for a specific hotkey action
@@ -130,7 +162,11 @@ impl<K> KeyBuffer<K> where K: KeycodeType {
     /// representing which keys must be pressed for that hotkey. Each key used as part of the hotkey
     /// system is assigned a unique bit in this masking scheme. This means if a u32 is used as the
     /// bitmask type then only 32 distinct keys may be used across all hotkeys.
-    fn update_key_buffer_values(key_combination: &[Keycode], bit: &mut Bitmask, lookup_table: &mut [Bitmask]) -> Result<Bitmask, &'static str> {
+    fn update_key_buffer_values(
+        key_combination: &[Keycode],
+        bit: &mut Bitmask,
+        lookup_table: &mut [Bitmask],
+    ) -> Result<Bitmask, &'static str> {
         let mut mask: Bitmask = 0;
         for keycode in key_combination {
             let lookup_table_mask = &mut lookup_table[K::from(*keycode).index()];
@@ -227,7 +263,11 @@ impl<K> KeyBuffer<K> where K: KeycodeType {
     }
 }
 
-pub struct HotkeyManager<KS, K> where KS: KeyboardState<K>, K: KeycodeType {
+pub struct HotkeyManager<KS, K>
+where
+    KS: KeyboardState<K>,
+    K: KeycodeType,
+{
     previous_state: Bitmask,
     current_state: Bitmask,
     movement_key_held_frames: u32,
@@ -236,18 +276,22 @@ pub struct HotkeyManager<KS, K> where KS: KeyboardState<K>, K: KeycodeType {
     keyboard_state: KS,
 }
 
-impl<KS, K> HotkeyManager<KS, K> where KS: KeyboardState<K>, K: KeycodeType {
-    pub(crate) fn new_generic(key_bindings: &KeyBindings) -> Result<HotkeyManager<KS, K>, &'static str> {
-        Ok(
-            HotkeyManager {
-                previous_state: 0,
-                current_state: 0,
-                movement_key_held_frames: 0,
-                scale_key_held_frames: 0,
-                key_buffer: KeyBuffer::new(key_bindings)?,
-                keyboard_state: KS::default(),
-            }
-        )
+impl<KS, K> HotkeyManager<KS, K>
+where
+    KS: KeyboardState<K>,
+    K: KeycodeType,
+{
+    pub(crate) fn new_generic(
+        key_bindings: &KeyBindings,
+    ) -> Result<HotkeyManager<KS, K>, &'static str> {
+        Ok(HotkeyManager {
+            previous_state: 0,
+            current_state: 0,
+            movement_key_held_frames: 0,
+            scale_key_held_frames: 0,
+            key_buffer: KeyBuffer::new(key_bindings)?,
+            keyboard_state: KS::default(),
+        })
     }
 
     pub fn poll_keys(&mut self) {
@@ -278,25 +322,29 @@ impl<KS, K> HotkeyManager<KS, K> where KS: KeyboardState<K>, K: KeycodeType {
     /// check if "toggle_hidden" key combination was just pressed
     pub fn toggle_hidden(&self) -> bool {
         let key_buffer = &self.key_buffer;
-        !key_buffer.toggle_hidden(self.previous_state) && key_buffer.toggle_hidden(self.current_state)
+        !key_buffer.toggle_hidden(self.previous_state)
+            && key_buffer.toggle_hidden(self.current_state)
     }
 
     /// check if "toggle_adjust" key combination was just pressed
     pub fn toggle_adjust(&self) -> bool {
         let key_buffer = &self.key_buffer;
-        !key_buffer.toggle_adjust(self.previous_state) && key_buffer.toggle_adjust(self.current_state)
+        !key_buffer.toggle_adjust(self.previous_state)
+            && key_buffer.toggle_adjust(self.current_state)
     }
 
     /// check if "toggle_color_picker" key combination was just pressed
     pub fn toggle_color_picker(&self) -> bool {
         let key_buffer = &self.key_buffer;
-        !key_buffer.toggle_color_picker(self.previous_state) && key_buffer.toggle_color_picker(self.current_state)
+        !key_buffer.toggle_color_picker(self.previous_state)
+            && key_buffer.toggle_color_picker(self.current_state)
     }
 
     /// check if "cycle_monitor" key combination was just pressed
     pub fn cycle_monitor(&self) -> bool {
         let key_buffer = &self.key_buffer;
-        !key_buffer.cycle_monitor(self.previous_state) && key_buffer.cycle_monitor(self.current_state)
+        !key_buffer.cycle_monitor(self.previous_state)
+            && key_buffer.cycle_monitor(self.current_state)
     }
 
     /// calculate the move up speed based on how long movement keys have been held

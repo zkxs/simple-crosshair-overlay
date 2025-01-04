@@ -16,7 +16,11 @@ use crate::private::util::image::hue_value_to_argb;
 pub fn draw_color_picker(buffer: &mut [u32]) {
     const EXPECTED_SIZE: usize = 256;
     const BUFFER_SIZE: usize = EXPECTED_SIZE * EXPECTED_SIZE;
-    debug_assert_eq!(buffer.len(), BUFFER_SIZE, "draw_color_picker() passed buffer of wrong size");
+    debug_assert_eq!(
+        buffer.len(),
+        BUFFER_SIZE,
+        "draw_color_picker() passed buffer of wrong size"
+    );
 
     for y in 0..EXPECTED_SIZE {
         for x in 0..EXPECTED_SIZE {

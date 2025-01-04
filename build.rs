@@ -2,10 +2,10 @@
 // See LICENSE file for full text.
 // Copyright © 2023-2024 Michael Ripley
 
-use std::{env, fs, io};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::{env, fs, io};
 
 /// Tray icon dimension. [As per Microsoft](https://learn.microsoft.com/en-us/windows/win32/shell/notification-area?redirectedfrom=MSDN#add-a-notification-icon):
 ///
@@ -38,12 +38,18 @@ fn main() -> io::Result<()> {
     {
         let constants_path = out_dir.join(CONSTANTS_SOURCE_NAME);
         create_constants(constants_path.as_path())?;
-        println!("cargo:rustc-env=CONSTANTS_PATH={}", constants_path.to_str().unwrap());
+        println!(
+            "cargo:rustc-env=CONSTANTS_PATH={}",
+            constants_path.to_str().unwrap()
+        );
     }
 
     // record git commit hash
     {
-        let output = Command::new("git").args(["rev-parse", "HEAD"]).output().unwrap();
+        let output = Command::new("git")
+            .args(["rev-parse", "HEAD"])
+            .output()
+            .unwrap();
         let git_commit_hash = String::from_utf8(output.stdout).unwrap();
         println!("cargo:rustc-env=GIT_COMMIT_HASH={}", git_commit_hash);
     }
@@ -52,7 +58,10 @@ fn main() -> io::Result<()> {
     {
         let tray_icon_path = out_dir.join(TRAY_ICON_NAME);
         generate_file_if_not_cached(tray_icon_path.as_path(), create_tray_icon_file)?;
-        println!("cargo:rustc-env=TRAY_ICON_PATH={}", tray_icon_path.to_str().unwrap());
+        println!(
+            "cargo:rustc-env=TRAY_ICON_PATH={}",
+            tray_icon_path.to_str().unwrap()
+        );
     }
 
     // only generate Windows resource info on Windows.
@@ -75,7 +84,9 @@ fn main() -> io::Result<()> {
 
 /// helper to cache results because some IDEs will furiously re-run build.rs constantly.
 fn generate_file_if_not_cached<F, R>(path: &Path, generator: F) -> io::Result<Option<R>>
-    where F: FnOnce(&Path) -> io::Result<R> {
+where
+    F: FnOnce(&Path) -> io::Result<R>,
+{
     // never cache for release builds. They're so infrequent it's not worth the risk of using a stale asset.
     if cfg!(not(debug_assertions)) || !path.is_file() {
         let result = generator(path)?;
@@ -90,8 +101,12 @@ fn generate_file_if_not_cached<F, R>(path: &Path, generator: F) -> io::Result<Op
 fn create_constants(path: &Path) -> io::Result<()> {
     let file = fs::File::create(path)?;
     let mut writer = BufWriter::new(file);
-    writer.write_fmt(format_args!("pub const TRAY_ICON_DIMENSION: u32 = {TRAY_ICON_DIMENSION};\n"))?;
-    writer.write_fmt(format_args!("pub const APPLICATION_NAME: &str = {APP_NAME_DEBUG:?};\n"))?;
+    writer.write_fmt(format_args!(
+        "pub const TRAY_ICON_DIMENSION: u32 = {TRAY_ICON_DIMENSION};\n"
+    ))?;
+    writer.write_fmt(format_args!(
+        "pub const APPLICATION_NAME: &str = {APP_NAME_DEBUG:?};\n"
+    ))?;
     writer.flush()
 }
 
