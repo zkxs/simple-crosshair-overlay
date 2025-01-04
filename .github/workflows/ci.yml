@@ -23,6 +23,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v1
+  cargo-fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Cargo
+        run: rustup component add cargo
+      - name: Install Clippy
+        run: rustup component add rustfmt
+      - uses: actions/checkout@v4
+      - name: Format
+        run: cargo fmt --check
   test:
     strategy:
       matrix:
