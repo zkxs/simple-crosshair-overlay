@@ -72,6 +72,15 @@ feature-depth = 1
 ignore = [
     #"RUSTSEC-0000-0000",
     #{ id = "RUSTSEC-0000-0000", reason = "you can specify a reason the advisory is ignored" },
+    { id = "RUSTSEC-2024-0413", reason = "atk: The gtk-rs GTK3 bindings are no longer maintained. tray-icon needs to migrate to GTK4 to resolve this." },
+    { id = "RUSTSEC-2024-0416", reason = "atk-sys: The gtk-rs GTK3 bindings are no longer maintained. tray-icon needs to migrate to GTK4 to resolve this." },
+    { id = "RUSTSEC-2024-0412", reason = "gdk: The gtk-rs GTK3 bindings are no longer maintained. tray-icon needs to migrate to GTK4 to resolve this." },
+    { id = "RUSTSEC-2024-0418", reason = "gdk-sys: The gtk-rs GTK3 bindings are no longer maintained. tray-icon needs to migrate to GTK4 to resolve this." },
+    { id = "RUSTSEC-2024-0415", reason = "gtk: The gtk-rs GTK3 bindings are no longer maintained. tray-icon needs to migrate to GTK4 to resolve this." },
+    { id = "RUSTSEC-2024-0420", reason = "gtk-sys: The gtk-rs GTK3 bindings are no longer maintained. tray-icon needs to migrate to GTK4 to resolve this." },
+    { id = "RUSTSEC-2024-0419", reason = "gtk-macros: The gtk-rs GTK3 bindings are no longer maintained. tray-icon needs to migrate to GTK4 to resolve this." },
+    { id = "RUSTSEC-2024-0429", reason = "glib: Unsoundness in `Iterator` and `DoubleEndedIterator` impls for `glib::VariantStrIter`. tray-icon needs to migrate to GTK4 to resolve this. This is not an impactful security issue, as simple-crosshair-overlay does not operate on untrusted input." },
+    { id = "RUSTSEC-2024-0370", reason = "proc-macro-error is unmaintained. tray-icon needs to migrate to GTK4 to resolve this." },
     #"a-crate-that-is-yanked@0.1.1", # you can also ignore yanked crate versions if you wish
     #{ crate = "a-crate-that-is-yanked@0.1.1", reason = "you can specify why you are ignoring the yanked crate" },
 ]
@@ -100,7 +109,7 @@ allow = [
     # Weirder stuff
     "Apache-2.0 WITH LLVM-exception", # Needed by target-lexicon
     "MPL-2.0", # OSI and FSF approved. Needed by option-ext
-    "Unicode-DFS-2016", # OSI but not FSF approved. Needed by unicode-ident.
+    "Unicode-3.0", # OSI but not FSF approved. Needed by unicode-ident.
 ]
 # The confidence threshold for detecting a license from license text.
 # The higher the value, the more closely the license text must be to the
@@ -210,32 +219,23 @@ skip = [
     #"ansi_term@0.11.0",
     #{ crate = "ansi_term@0.11.0", reason = "you can specify a reason why it can't be updated/removed" },
 
-    # Allow a bunch of wrapper libs. Either macro helpers or native bindings.
-    { name = "cfg_aliases" },
-    { name = "core-graphics" },
-    { name = "foreign-types" },
-    { name = "foreign-types-shared" },
-    { name = "libloading" },
-    { name = "libredox" },
-    { name = "linux-raw-sys" },
-    { name = "memmap2" },
-    { name = "memoffset" },
-    { name = "num_enum" },
-    { name = "num_enum_derive" },
-    { name = "raw-window-handle" },
-    { name = "redox_syscall" },
-    { name = "wayland-client" },
-    { name = "wayland-scanner" },
-    { name = "wayland-sys" },
-    { name = "windows-sys" },
-    { name = "windows-targets" },
-    { name = "windows_aarch64_gnullvm" },
-    { name = "windows_aarch64_msvc" },
-    { name = "windows_i686_gnu" },
-    { name = "windows_i686_msvc" },
-    { name = "windows_x86_64_gnu" },
-    { name = "windows_x86_64_gnullvm" },
-    { name = "windows_x86_64_msvc" },
+    { crate = "core-foundation@0.9.4", reason = "Wrapper lib. winit & native-dialog use old version" },
+    { crate = "core-graphics@0.23.2", reason = "Wrapper lib. winit & native-dialog use old version" },
+    { crate = "core-graphics-types@0.1.3", reason = "Wrapper lib. winit & native-dialog use old version" },
+    { crate = "heck@0.4.1", reason = "Case conversion lib. gtk uses old version" },
+    { crate = "libloading@0.7.4", reason = "Wrapper lib. tray-icon uses old version" },
+    { crate = "linux-raw-sys@0.4.14", reason = "Wrapper lib. winit uses old version" },
+    { crate = "raw-window-handle@0.5.2", reason = "Wrapper lib. native-dialog uses old version" },
+    { crate = "redox_syscall@0.4.1", reason = "Wrapper lib. winit uses old version" },
+    { crate = "windows-sys", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
+    { crate = "windows-targets", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
+    { crate = "windows_aarch64_gnullvm", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
+    { crate = "windows_aarch64_msvc", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
+    { crate = "windows_i686_gnu", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
+    { crate = "windows_i686_msvc", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
+    { crate = "windows_x86_64_gnu", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
+    { crate = "windows_x86_64_gnullvm", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
+    { crate = "windows_x86_64_msvc", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
 ]
 # Similarly to `skip` allows you to skip certain crates during duplicate
 # detection. Unlike skip, it also includes the entire tree of transitive
