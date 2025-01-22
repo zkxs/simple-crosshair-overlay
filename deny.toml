@@ -224,7 +224,7 @@ skip = [
     { crate = "core-graphics-types@0.1.3", reason = "Wrapper lib. winit & native-dialog use old version" },
     { crate = "heck@0.4.1", reason = "Case conversion lib. gtk uses old version" },
     { crate = "libloading@0.7.4", reason = "Wrapper lib. tray-icon uses old version" },
-    { crate = "linux-raw-sys@0.4.14", reason = "Wrapper lib. winit uses old version" },
+    { crate = "linux-raw-sys@0.4.15", reason = "Wrapper lib. winit uses old version" },
     { crate = "raw-window-handle@0.5.2", reason = "Wrapper lib. native-dialog uses old version" },
     { crate = "redox_syscall@0.4.1", reason = "Wrapper lib. winit uses old version" },
     { crate = "windows-sys", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
