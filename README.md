@@ -91,6 +91,13 @@ For suggestions, questions, or even just to say hey, feel free to start a [discu
 
 ## License
 
-Copyright 2023-2024 [Michael Ripley](https://github.com/zkxs).
+Simple Crosshair Overlay is free software: you can redistribute it and/or modify it under the terms of the
+[GNU General Public License](LICENSE) as published by the Free Software Foundation, under version 3 of the
+License.
 
-Simple Crosshair Overlay is provided under the [GPL-3.0 license](LICENSE).
+Simple Crosshair Overlay is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+[GNU General Public License](LICENSE) for more details.
+
+A full list of dependencies is available in [Cargo.toml](Cargo.toml), or a breakdown of dependencies by license can be
+generated with `cargo deny list`.
