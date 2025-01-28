@@ -9,7 +9,7 @@ readme = "README.md"
 repository = "https://github.com/zkxs/simple-crosshair-overlay"
 keywords = ["application", "overlay", "window", "crosshair"]
 categories = []
-rust-version = "1.70.0"
+rust-version = "1.80.1"
 
 [lib]
 path = "src-lib/lib.rs"
