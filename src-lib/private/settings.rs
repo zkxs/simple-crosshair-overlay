@@ -315,6 +315,11 @@ impl Settings {
         debug_println!("placing window at {}, {}", window_x, window_y);
         PhysicalPosition::new(window_x, window_y)
     }
+
+    pub fn set_monitor(&mut self, monitor_index: usize) {
+        self.monitor_index = monitor_index;
+        self.persisted.monitor = (monitor_index as u32) + 1;
+    }
 }
 
 impl Default for Settings {
