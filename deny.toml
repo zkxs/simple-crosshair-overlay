@@ -236,7 +236,6 @@ skip = [
     { crate = "windows_x86_64_gnu", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
     { crate = "windows_x86_64_gnullvm", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
     { crate = "windows_x86_64_msvc", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
-    { crate = "dirs-sys@0.4.1", reason = "no major changes between 0.4 and 0.5. tray-icon uses old version" },
     { crate = "redox_users@0.4.6", reason = "tray-icon and native-dialog uses old version" },
     { crate = "thiserror@1.0.69", reason = "A derive macro for Error. A LOT of stuff uses old version" },
     { crate = "thiserror-impl@1.0.69", reason = "A derive macro for Error. A LOT of stuff uses old version" },
