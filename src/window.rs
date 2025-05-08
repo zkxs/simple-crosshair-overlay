@@ -214,7 +214,8 @@ impl<'a> ApplicationHandler<UserEvent> for State<'a> {
             }
 
             if self.hotkey_manager.cycle_monitor() {
-                let next_monitor = (self.settings.monitor_index + 1) % window.available_monitors().count();
+                let next_monitor =
+                    (self.settings.monitor_index + 1) % window.available_monitors().count();
                 self.settings.set_monitor(next_monitor);
                 self.window_scale_dirty = true;
             }
