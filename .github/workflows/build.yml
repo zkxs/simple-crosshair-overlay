@@ -85,7 +85,7 @@ jobs:
       - name: Install Clippy
         run: rustup component add clippy
       - name: Install nightly rust-src
-        run: rustup component add rust-src --toolchain nightly-${{ matrix.target.triple }}
+        run: rustup component add rust-src --toolchain nightly
       - name: git checkout
         uses: actions/checkout@v4
       - name: Setup workflow cache
