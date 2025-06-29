@@ -76,16 +76,16 @@ jobs:
     steps:
       - name: Update Rust Toolchain
         run: rustup update
-      - name: Install nightly Rust
-        run: rustup toolchain install nightly
       - name: Install Rust target
         run: rustup target add ${{ matrix.target.triple }}
+      - name: Install nightly Rust
+        run: rustup toolchain install nightly-${{ matrix.target.triple }}
       - name: Install Cargo
         run: rustup component add cargo
       - name: Install Clippy
         run: rustup component add clippy
-      - name: Install rust src
-        run: rustup component add rust-src
+      - name: Install Nightly rust-src
+        run: rustup component add rust-src --toolchain nightly-${{ matrix.target.triple }}
       - name: git checkout
         uses: actions/checkout@v4
       - name: Setup workflow cache
