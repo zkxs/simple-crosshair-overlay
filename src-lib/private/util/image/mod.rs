@@ -1,12 +1,12 @@
 // This file is part of simple-crosshair-overlay and is licenced under the GNU GPL v3.0.
 // See LICENSE file for full text.
-// Copyright © 2023 Michael Ripley
+// Copyright © 2023-2025 Michael Ripley
 
 //! Image processing and color utilities
 
 use std::fs::File;
+use std::io;
 use std::path::Path;
-use std::{io, mem};
 
 use png::ColorType;
 
@@ -269,7 +269,7 @@ where
     // Here I make a buffer of the correct size to hold the reader's data, but as u32's instead of u8's.
     // This is done because it's not safe to cast a &[u8] into a &[u32] due to possible u32 misalignment,
     // however it is completely safe to cast a &[u32] into a &[u8].
-    const RATIO: usize = mem::size_of::<u32>() / mem::size_of::<u8>(); // this is going to be 4 always, but it's good practice to not use a magic number here
+    const RATIO: usize = size_of::<u32>() / size_of::<u8>(); // this is going to be 4 always, but it's good practice to not use a magic number here
     let mut buf_as_u32: Vec<u32> =
         Vec::with_capacity(reader.output_buffer_size().div_ceil_placeholder(RATIO));
     #[allow(clippy::uninit_vec)]
@@ -484,11 +484,7 @@ mod test_color_picker {
             let error = color_error(actual_argb, expected_argb);
             assert!(
                 error <= max_error,
-                "precise and optimized hv->argb differ: @ hue {}, {:08X} != {:08X}, error={}",
-                hue,
-                actual_argb,
-                expected_argb,
-                error
+                "precise and optimized hv->argb differ: @ hue {hue}, {actual_argb:08X} != {expected_argb:08X}, error={error}"
             );
         }
     }
@@ -503,11 +499,7 @@ mod test_color_picker {
             let error = color_error(actual_argb, expected_argb);
             assert!(
                 error <= max_error,
-                "precise and optimized ha->argb differ: @ hue {}, {:08X} != {:08X}, error={}",
-                hue,
-                actual_argb,
-                expected_argb,
-                error
+                "precise and optimized ha->argb differ: @ hue {hue}, {actual_argb:08X} != {expected_argb:08X}, error={error}"
             );
         }
     }
@@ -522,11 +514,7 @@ mod test_color_picker {
             let error = color_error(actual_argb, expected_argb);
             assert!(
                 error <= max_error,
-                "precise and optimized hv->argb differ: @ value {}, {:08X} != {:08X}, error={}",
-                value,
-                actual_argb,
-                expected_argb,
-                error
+                "precise and optimized hv->argb differ: @ value {value}, {actual_argb:08X} != {expected_argb:08X}, error={error}"
             );
         }
     }

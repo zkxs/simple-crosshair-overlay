@@ -1,6 +1,6 @@
 // This file is part of simple-crosshair-overlay and is licenced under the GNU GPL v3.0.
 // See LICENSE file for full text.
-// Copyright © 2023-2024 Michael Ripley
+// Copyright © 2023-2025 Michael Ripley
 
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
@@ -51,7 +51,7 @@ fn main() -> io::Result<()> {
             .output()
             .unwrap();
         let git_commit_hash = String::from_utf8(output.stdout).unwrap();
-        println!("cargo:rustc-env=GIT_COMMIT_HASH={}", git_commit_hash);
+        println!("cargo:rustc-env=GIT_COMMIT_HASH={git_commit_hash}");
     }
 
     // generate a tray icon

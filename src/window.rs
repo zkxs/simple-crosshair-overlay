@@ -1,6 +1,6 @@
 // This file is part of simple-crosshair-overlay and is licenced under the GNU GPL v3.0.
 // See LICENSE file for full text.
-// Copyright © 2023-2024 Michael Ripley
+// Copyright © 2023-2025 Michael Ripley
 
 use std::num::NonZeroU32;
 use std::rc::Rc;
@@ -104,7 +104,7 @@ impl<'a> State<'a> {
                         self.force_redraw = true;
                         self.window_scale_dirty = true;
                     }
-                    Err(e) => dialog::show_warning(format!("Error loading PNG.\n\n{}", e)),
+                    Err(e) => dialog::show_warning(format!("Error loading PNG.\n\n{e}")),
                 }
             }
         }
