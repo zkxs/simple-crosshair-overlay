@@ -38,18 +38,12 @@ fn main() -> io::Result<()> {
     {
         let constants_path = out_dir.join(CONSTANTS_SOURCE_NAME);
         create_constants(constants_path.as_path())?;
-        println!(
-            "cargo:rustc-env=CONSTANTS_PATH={}",
-            constants_path.to_str().unwrap()
-        );
+        println!("cargo:rustc-env=CONSTANTS_PATH={}", constants_path.to_str().unwrap());
     }
 
     // record git commit hash
     {
-        let output = Command::new("git")
-            .args(["rev-parse", "HEAD"])
-            .output()
-            .unwrap();
+        let output = Command::new("git").args(["rev-parse", "HEAD"]).output().unwrap();
         let git_commit_hash = String::from_utf8(output.stdout).unwrap();
         println!("cargo:rustc-env=GIT_COMMIT_HASH={git_commit_hash}");
     }
@@ -58,10 +52,7 @@ fn main() -> io::Result<()> {
     {
         let tray_icon_path = out_dir.join(TRAY_ICON_NAME);
         generate_file_if_not_cached(tray_icon_path.as_path(), create_tray_icon_file)?;
-        println!(
-            "cargo:rustc-env=TRAY_ICON_PATH={}",
-            tray_icon_path.to_str().unwrap()
-        );
+        println!("cargo:rustc-env=TRAY_ICON_PATH={}", tray_icon_path.to_str().unwrap());
     }
 
     // only generate Windows resource info on Windows.
@@ -104,9 +95,7 @@ fn create_constants(path: &Path) -> io::Result<()> {
     writer.write_fmt(format_args!(
         "pub const TRAY_ICON_DIMENSION: u32 = {TRAY_ICON_DIMENSION};\n"
     ))?;
-    writer.write_fmt(format_args!(
-        "pub const APPLICATION_NAME: &str = {APP_NAME_DEBUG:?};\n"
-    ))?;
+    writer.write_fmt(format_args!("pub const APPLICATION_NAME: &str = {APP_NAME_DEBUG:?};\n"))?;
     writer.flush()
 }
 

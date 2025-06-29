@@ -68,11 +68,10 @@ impl Context {
 impl<'a> State<'a> {
     pub fn new(settings: Settings, _event_loop: &EventLoop<UserEvent>) -> Self {
         // HotkeyManager has a decent quantity of data in it, but again it never really gets moved so we can just leave it on the stack
-        let hotkey_manager: HotkeyManager = HotkeyManager::new(&settings.persisted.key_bindings)
-            .unwrap_or_else(|e| {
-                dialog::show_warning(format!("{e}\n\nUsing default hotkeys."));
-                HotkeyManager::default()
-            });
+        let hotkey_manager: HotkeyManager = HotkeyManager::new(&settings.persisted.key_bindings).unwrap_or_else(|e| {
+            dialog::show_warning(format!("{e}\n\nUsing default hotkeys."));
+            HotkeyManager::default()
+        });
 
         let (menu_items, tray_icon) = tray::build_tray_icon();
         State {
@@ -214,8 +213,7 @@ impl<'a> ApplicationHandler<UserEvent> for State<'a> {
             }
 
             if self.hotkey_manager.cycle_monitor() {
-                let next_monitor =
-                    (self.settings.monitor_index + 1) % window.available_monitors().count();
+                let next_monitor = (self.settings.monitor_index + 1) % window.available_monitors().count();
                 self.settings.set_monitor(next_monitor);
                 self.window_scale_dirty = true;
             }
@@ -256,9 +254,7 @@ impl<'a> ApplicationHandler<UserEvent> for State<'a> {
         }
 
         // only enable this hotkey if the color picker is already visible OR if adjust mode is on
-        if self.hotkey_manager.toggle_color_picker()
-            && (adjust_mode || self.settings.get_pick_color())
-        {
+        if self.hotkey_manager.toggle_color_picker() && (adjust_mode || self.settings.get_pick_color()) {
             let color_pick = self.settings.toggle_pick_color();
             self.menu_items.color_pick_button.set_checked(color_pick);
             handle_color_pick(color_pick, window, &mut self.last_focused_window, true);
@@ -268,12 +264,7 @@ impl<'a> ApplicationHandler<UserEvent> for State<'a> {
         self.post_event_work(event_loop);
     }
 
-    fn window_event(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        _window_id: WindowId,
-        event: WindowEvent,
-    ) {
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, _window_id: WindowId, event: WindowEvent) {
         let context: &mut Context = self.context.as_mut().unwrap();
 
         match event {
@@ -291,8 +282,7 @@ impl<'a> ApplicationHandler<UserEvent> for State<'a> {
                 // this happens and it's terrible, but luckily Windows tells me it's done this so
                 // that I can immediately detect and undo it.
                 debug_println!("window position changed to {:?}", position);
-                self.settings
-                    .validate_window_position(&context.window, position);
+                self.settings.validate_window_position(&context.window, position);
             }
             WindowEvent::Resized(size) => {
                 // See above nightmare scenario with the window position. I figure I might as well
@@ -329,13 +319,7 @@ impl<'a> ApplicationHandler<UserEvent> for State<'a> {
         self.post_event_work(event_loop);
     }
 
-    fn device_event(
-        &mut self,
-        _event_loop: &ActiveEventLoop,
-        _device_id: DeviceId,
-        _event: DeviceEvent,
-    ) {
-    }
+    fn device_event(&mut self, _event_loop: &ActiveEventLoop, _device_id: DeviceId, _event: DeviceEvent) {}
 
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {}
 
@@ -460,9 +444,7 @@ fn init_window(active_event_loop: &ActiveEventLoop, settings: &mut Settings) -> 
     #[cfg(target_os = "windows")]
     let window_attributes = {
         use winit::platform::windows::WindowAttributesExtWindows;
-        window_attributes
-            .with_drag_and_drop(false)
-            .with_skip_taskbar(true)
+        window_attributes.with_drag_and_drop(false).with_skip_taskbar(true)
     };
 
     #[cfg(target_os = "macos")]

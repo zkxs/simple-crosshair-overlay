@@ -37,11 +37,10 @@ const fn default_monitor() -> u32 {
 }
 
 lazy_static! {
-    pub static ref CONFIG_PATH: PathBuf =
-        directories::ProjectDirs::from("dev.zkxs", "", "simple-crosshair-overlay")
-            .unwrap()
-            .config_dir()
-            .join("config.toml");
+    pub static ref CONFIG_PATH: PathBuf = directories::ProjectDirs::from("dev.zkxs", "", "simple-crosshair-overlay")
+        .unwrap()
+        .config_dir()
+        .join("config.toml");
 }
 
 /// The actual persisted settings struct
@@ -68,10 +67,7 @@ impl PersistedSettings {
         let color = image::premultiply_alpha(self.color);
 
         // make sure that if the user manually put an empty string in their config we don't explode
-        let filtered_image_path = self
-            .image_path
-            .as_ref()
-            .filter(|path| !path.as_os_str().is_empty());
+        let filtered_image_path = self.image_path.as_ref().filter(|path| !path.as_os_str().is_empty());
 
         let image = if let Some(image_path) = filtered_image_path {
             match image::load_png(image_path.as_path()) {
@@ -142,13 +138,10 @@ impl Settings {
                 let image = self.image.as_ref().unwrap();
                 PhysicalSize::new(image.width, image.height)
             }
-            RenderMode::Crosshair => {
-                PhysicalSize::new(self.persisted.window_width, self.persisted.window_height)
+            RenderMode::Crosshair => PhysicalSize::new(self.persisted.window_width, self.persisted.window_height),
+            RenderMode::ColorPicker => {
+                PhysicalSize::new(image::COLOR_PICKER_SIZE as u32, image::COLOR_PICKER_SIZE as u32)
             }
-            RenderMode::ColorPicker => PhysicalSize::new(
-                image::COLOR_PICKER_SIZE as u32,
-                image::COLOR_PICKER_SIZE as u32,
-            ),
         }
     }
 
@@ -230,8 +223,7 @@ impl Settings {
     {
         fs::read_to_string(path)
             .and_then(|string| {
-                toml::from_str::<PersistedSettings>(&string)
-                    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+                toml::from_str::<PersistedSettings>(&string).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
             })
             .map(|settings| settings.load())
     }
@@ -245,8 +237,7 @@ impl Settings {
     where
         T: AsRef<Path>,
     {
-        let serialized_config =
-            toml::to_string(&self.persisted).expect("failed to serialize settings");
+        let serialized_config = toml::to_string(&self.persisted).expect("failed to serialize settings");
         fs::write(path, serialized_config).map_err(|e| format!("{e:?}"))
     }
 
@@ -385,9 +376,7 @@ mod test_config_load {
     #[test]
     fn test_load_png() {
         let mut settings = Settings::load_from_path("tests/resources/test_config.toml").unwrap();
-        settings
-            .load_png("tests/resources/test.png".into())
-            .unwrap();
+        settings.load_png("tests/resources/test.png".into()).unwrap();
     }
 
     /// save config to disk

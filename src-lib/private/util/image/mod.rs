@@ -32,8 +32,7 @@ const COLOR_PICKER_NUM_SECTIONS: u8 = 6;
 /// floor(256/6)
 const COLOR_PICKER_SECTION_WIDTH: usize = 42;
 /// side-length of the color picker box
-pub const COLOR_PICKER_SIZE: usize =
-    COLOR_PICKER_SECTION_WIDTH * (COLOR_PICKER_NUM_SECTIONS as usize);
+pub const COLOR_PICKER_SIZE: usize = COLOR_PICKER_SECTION_WIDTH * (COLOR_PICKER_NUM_SECTIONS as usize);
 
 #[inline(always)]
 pub fn draw_color_picker(buffer: &mut [u32]) {
@@ -63,18 +62,12 @@ pub fn draw_color_picker(buffer: &mut [u32]) {
             let ramp_down_times_value = multiply_color_channels_u8(ramp_down, value);
 
             // write six pixels at once
-            buffer[row_offset + SECTION_0 + column_offset] =
-                u32::from_le_bytes([0, ramp_up_times_value, value, 255]);
-            buffer[row_offset + SECTION_1 + column_offset] =
-                u32::from_le_bytes([0, value, ramp_down_times_value, 255]);
-            buffer[row_offset + SECTION_2 + column_offset] =
-                u32::from_le_bytes([ramp_up_times_value, value, 0, 255]);
-            buffer[row_offset + SECTION_3 + column_offset] =
-                u32::from_le_bytes([value, ramp_down_times_value, 0, 255]);
-            buffer[row_offset + SECTION_4 + column_offset] =
-                u32::from_le_bytes([value, 0, ramp_up_times_value, 255]);
-            buffer[row_offset + SECTION_5 + column_offset] =
-                u32::from_le_bytes([ramp_down_times_value, 0, value, 255]);
+            buffer[row_offset + SECTION_0 + column_offset] = u32::from_le_bytes([0, ramp_up_times_value, value, 255]);
+            buffer[row_offset + SECTION_1 + column_offset] = u32::from_le_bytes([0, value, ramp_down_times_value, 255]);
+            buffer[row_offset + SECTION_2 + column_offset] = u32::from_le_bytes([ramp_up_times_value, value, 0, 255]);
+            buffer[row_offset + SECTION_3 + column_offset] = u32::from_le_bytes([value, ramp_down_times_value, 0, 255]);
+            buffer[row_offset + SECTION_4 + column_offset] = u32::from_le_bytes([value, 0, ramp_up_times_value, 255]);
+            buffer[row_offset + SECTION_5 + column_offset] = u32::from_le_bytes([ramp_down_times_value, 0, value, 255]);
 
             ramp_up = ramp_up.wrapping_add(COLOR_PICKER_NUM_SECTIONS);
             ramp_down = ramp_down.wrapping_sub(COLOR_PICKER_NUM_SECTIONS);
@@ -107,23 +100,11 @@ pub fn hue_value_to_argb(hue: u8, value: u8) -> u32 {
 
     let [r, g, b] = match hue {
         hue if hue < SECTION_1 => [value, multiply_color_channels_u8(raw_hue, value), 0],
-        hue if hue < SECTION_2 => [
-            multiply_color_channels_u8(MAX_COLOR - raw_hue, value),
-            value,
-            0,
-        ],
+        hue if hue < SECTION_2 => [multiply_color_channels_u8(MAX_COLOR - raw_hue, value), value, 0],
         hue if hue < SECTION_3 => [0, value, multiply_color_channels_u8(raw_hue, value)],
-        hue if hue < SECTION_4 => [
-            0,
-            multiply_color_channels_u8(MAX_COLOR - raw_hue, value),
-            value,
-        ],
+        hue if hue < SECTION_4 => [0, multiply_color_channels_u8(MAX_COLOR - raw_hue, value), value],
         hue if hue < SECTION_5 => [multiply_color_channels_u8(raw_hue, value), 0, value],
-        _ => [
-            value,
-            0,
-            multiply_color_channels_u8(MAX_COLOR - raw_hue, value),
-        ],
+        _ => [value, 0, multiply_color_channels_u8(MAX_COLOR - raw_hue, value)],
     };
 
     u32::from_le_bytes([b, g, r, MAX_COLOR])
@@ -270,8 +251,7 @@ where
     // This is done because it's not safe to cast a &[u8] into a &[u32] due to possible u32 misalignment,
     // however it is completely safe to cast a &[u32] into a &[u8].
     const RATIO: usize = size_of::<u32>() / size_of::<u8>(); // this is going to be 4 always, but it's good practice to not use a magic number here
-    let mut buf_as_u32: Vec<u32> =
-        Vec::with_capacity(reader.output_buffer_size().div_ceil_placeholder(RATIO));
+    let mut buf_as_u32: Vec<u32> = Vec::with_capacity(reader.output_buffer_size().div_ceil_placeholder(RATIO));
     #[allow(clippy::uninit_vec)]
     unsafe {
         // there is no requirement I send a zeroed buffer to the PNG decoding library.
@@ -320,10 +300,7 @@ where
 /// I haven't thought about what happens if `width` or `height` are negative, so you'd better keep them positive.
 #[inline(always)]
 pub fn rectangle_center(x: i32, y: i32, width: i32, height: i32) -> (i32, i32) {
-    (
-        x + width.div_floor_placeholder(2),
-        y + height.div_floor_placeholder(2),
-    )
+    (x + width.div_floor_placeholder(2), y + height.div_floor_placeholder(2))
 }
 
 #[cfg(test)]
@@ -439,10 +416,7 @@ mod test_rectangle_center {
     /// my actual 1080p monitor setup
     #[test]
     fn test_1080p_top_centered() {
-        assert_eq!(
-            rectangle_center(397, -1080, 1920, 1080),
-            (397 + 960, -1080 + 540)
-        );
+        assert_eq!(rectangle_center(397, -1080, 1920, 1080), (397 + 960, -1080 + 540));
     }
 }
 
@@ -595,14 +569,8 @@ mod test_color_picker {
         let calculated_color = x_y_to_argb_252(x as u8, y as u8);
         let actual_color = rgb_to_hsv_precise(calculated_color);
         let [_, _, _, actual_alpha] = calculated_color.to_le_bytes();
-        assert_eq!(
-            expected_color, actual_color,
-            "color did not match at ({x}, {y})"
-        );
-        assert_eq!(
-            expected_alpha, actual_alpha,
-            "alpha did not match at ({x}, {y})"
-        );
+        assert_eq!(expected_color, actual_color, "color did not match at ({x}, {y})");
+        assert_eq!(expected_alpha, actual_alpha, "alpha did not match at ({x}, {y})");
     }
 }
 

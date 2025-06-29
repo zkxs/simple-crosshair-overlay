@@ -92,9 +92,7 @@ pub fn build_tray_icon() -> (MenuItems, TrayIcon) {
         debug_println!("acquired GTK lock");
         if !*gtk_started {
             debug_println!("waiting for GTK init signal");
-            let (gtk_started, timeout_result) = condvar
-                .wait_timeout(gtk_started, Duration::from_secs(5))
-                .unwrap();
+            let (gtk_started, timeout_result) = condvar.wait_timeout(gtk_started, Duration::from_secs(5)).unwrap();
             if !*gtk_started {
                 panic!("GTK startup timed out = {}", timeout_result.timed_out());
             }

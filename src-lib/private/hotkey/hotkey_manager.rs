@@ -93,44 +93,22 @@ where
         // build the lookup table and compute each hotkeys bitmask combination
         let mut bit = 1;
         let mut lookup_table = vec![0; K::num_variants()];
-        let up_mask =
-            Self::update_key_buffer_values(&key_bindings.up, &mut bit, &mut lookup_table)?;
-        let down_mask =
-            Self::update_key_buffer_values(&key_bindings.down, &mut bit, &mut lookup_table)?;
-        let left_mask =
-            Self::update_key_buffer_values(&key_bindings.left, &mut bit, &mut lookup_table)?;
-        let right_mask =
-            Self::update_key_buffer_values(&key_bindings.right, &mut bit, &mut lookup_table)?;
-        let cycle_monitor_mask = Self::update_key_buffer_values(
-            &key_bindings.cycle_monitor,
-            &mut bit,
-            &mut lookup_table,
-        )?;
-        let scale_increase_mask = Self::update_key_buffer_values(
-            &key_bindings.scale_increase,
-            &mut bit,
-            &mut lookup_table,
-        )?;
-        let scale_decrease_mask = Self::update_key_buffer_values(
-            &key_bindings.scale_decrease,
-            &mut bit,
-            &mut lookup_table,
-        )?;
-        let toggle_hidden_mask = Self::update_key_buffer_values(
-            &key_bindings.toggle_hidden,
-            &mut bit,
-            &mut lookup_table,
-        )?;
-        let toggle_adjust_mask = Self::update_key_buffer_values(
-            &key_bindings.toggle_adjust,
-            &mut bit,
-            &mut lookup_table,
-        )?;
-        let toggle_color_picker_mask = Self::update_key_buffer_values(
-            &key_bindings.toggle_color_picker,
-            &mut bit,
-            &mut lookup_table,
-        )?;
+        let up_mask = Self::update_key_buffer_values(&key_bindings.up, &mut bit, &mut lookup_table)?;
+        let down_mask = Self::update_key_buffer_values(&key_bindings.down, &mut bit, &mut lookup_table)?;
+        let left_mask = Self::update_key_buffer_values(&key_bindings.left, &mut bit, &mut lookup_table)?;
+        let right_mask = Self::update_key_buffer_values(&key_bindings.right, &mut bit, &mut lookup_table)?;
+        let cycle_monitor_mask =
+            Self::update_key_buffer_values(&key_bindings.cycle_monitor, &mut bit, &mut lookup_table)?;
+        let scale_increase_mask =
+            Self::update_key_buffer_values(&key_bindings.scale_increase, &mut bit, &mut lookup_table)?;
+        let scale_decrease_mask =
+            Self::update_key_buffer_values(&key_bindings.scale_decrease, &mut bit, &mut lookup_table)?;
+        let toggle_hidden_mask =
+            Self::update_key_buffer_values(&key_bindings.toggle_hidden, &mut bit, &mut lookup_table)?;
+        let toggle_adjust_mask =
+            Self::update_key_buffer_values(&key_bindings.toggle_adjust, &mut bit, &mut lookup_table)?;
+        let toggle_color_picker_mask =
+            Self::update_key_buffer_values(&key_bindings.toggle_color_picker, &mut bit, &mut lookup_table)?;
         let any_movement_mask = up_mask | down_mask | left_mask | right_mask;
         let any_scale_mask = scale_increase_mask | scale_decrease_mask;
 
@@ -281,9 +259,7 @@ where
     KS: KeyboardState<K>,
     K: KeycodeType,
 {
-    pub(crate) fn new_generic(
-        key_bindings: &KeyBindings,
-    ) -> Result<HotkeyManager<KS, K>, &'static str> {
+    pub(crate) fn new_generic(key_bindings: &KeyBindings) -> Result<HotkeyManager<KS, K>, &'static str> {
         Ok(HotkeyManager {
             previous_state: 0,
             current_state: 0,
@@ -322,29 +298,25 @@ where
     /// check if "toggle_hidden" key combination was just pressed
     pub fn toggle_hidden(&self) -> bool {
         let key_buffer = &self.key_buffer;
-        !key_buffer.toggle_hidden(self.previous_state)
-            && key_buffer.toggle_hidden(self.current_state)
+        !key_buffer.toggle_hidden(self.previous_state) && key_buffer.toggle_hidden(self.current_state)
     }
 
     /// check if "toggle_adjust" key combination was just pressed
     pub fn toggle_adjust(&self) -> bool {
         let key_buffer = &self.key_buffer;
-        !key_buffer.toggle_adjust(self.previous_state)
-            && key_buffer.toggle_adjust(self.current_state)
+        !key_buffer.toggle_adjust(self.previous_state) && key_buffer.toggle_adjust(self.current_state)
     }
 
     /// check if "toggle_color_picker" key combination was just pressed
     pub fn toggle_color_picker(&self) -> bool {
         let key_buffer = &self.key_buffer;
-        !key_buffer.toggle_color_picker(self.previous_state)
-            && key_buffer.toggle_color_picker(self.current_state)
+        !key_buffer.toggle_color_picker(self.previous_state) && key_buffer.toggle_color_picker(self.current_state)
     }
 
     /// check if "cycle_monitor" key combination was just pressed
     pub fn cycle_monitor(&self) -> bool {
         let key_buffer = &self.key_buffer;
-        !key_buffer.cycle_monitor(self.previous_state)
-            && key_buffer.cycle_monitor(self.current_state)
+        !key_buffer.cycle_monitor(self.previous_state) && key_buffer.cycle_monitor(self.current_state)
     }
 
     /// calculate the move up speed based on how long movement keys have been held

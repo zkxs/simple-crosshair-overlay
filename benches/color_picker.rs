@@ -35,9 +35,7 @@ pub fn bench_hsv_argb(c: &mut Criterion) {
     let mut group = c.benchmark_group("HSV -> ARGB conversion implementations");
 
     group.bench_function("Precise HSV", |bencher| {
-        bencher.iter(|| {
-            image::precise::hsv_to_argb(black_box(0xFF), black_box(0xFF), black_box(0xFF))
-        });
+        bencher.iter(|| image::precise::hsv_to_argb(black_box(0xFF), black_box(0xFF), black_box(0xFF)));
     });
 
     group.bench_function("Optimized HV", |bencher| {
@@ -55,8 +53,7 @@ pub fn bench_multiply_color_channel(c: &mut Criterion) {
     let mut group = c.benchmark_group("Color channel multiply implementations");
 
     group.bench_function("Precise", |bencher| {
-        bencher
-            .iter(|| image::precise::multiply_color_channels_u8(black_box(0xFF), black_box(0x7F)));
+        bencher.iter(|| image::precise::multiply_color_channels_u8(black_box(0xFF), black_box(0x7F)));
     });
 
     group.bench_function("Optimized", |bencher| {
