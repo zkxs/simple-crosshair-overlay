@@ -1,6 +1,6 @@
 # This file is part of simple-crosshair-overlay and is licenced under the GNU GPL v3.0.
 # See LICENSE file for full text.
-# Copyright © 2023 Michael Ripley
+# Copyright © 2025 Michael Ripley
 
 name: Publish
 on:
@@ -24,10 +24,8 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Setup Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+      - name: Update Rust Toolchain
+        run: rustup update
       - name: Publish
         run: cargo publish
         env:
