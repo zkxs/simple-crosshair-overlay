@@ -79,12 +79,12 @@ jobs:
       - name: Install Rust target
         run: rustup target add ${{ matrix.target.triple }}
       - name: Install nightly Rust
-        run: rustup toolchain install nightly-${{ matrix.target.triple }}
+        run: rustup toolchain install nightly
       - name: Install Cargo
         run: rustup component add cargo
       - name: Install Clippy
         run: rustup component add clippy
-      - name: Install Nightly rust-src
+      - name: Install nightly rust-src
         run: rustup component add rust-src --toolchain nightly-${{ matrix.target.triple }}
       - name: git checkout
         uses: actions/checkout@v4
