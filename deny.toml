@@ -224,21 +224,14 @@ skip = [
     { crate = "core-graphics-types@0.1.3", reason = "Wrapper lib. winit & native-dialog use old version" },
     { crate = "heck@0.4.1", reason = "Case conversion lib. gtk uses old version" },
     { crate = "libloading@0.7.4", reason = "Wrapper lib. tray-icon uses old version" },
-    { crate = "linux-raw-sys@0.4.15", reason = "Wrapper lib. winit uses old version" },
-    { crate = "raw-window-handle@0.5.2", reason = "Wrapper lib. native-dialog uses old version" },
+    { crate = "linux-raw-sys@0.4", reason = "Wrapper lib. winit uses old version" },
+    { crate = "linux-raw-sys@0.6", reason = "Wrapper lib. softbuffer uses old version" },
     { crate = "redox_syscall@0.4.1", reason = "Wrapper lib. winit uses old version" },
-    { crate = "windows-sys", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
-    { crate = "windows-targets", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
-    { crate = "windows_aarch64_gnullvm", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
-    { crate = "windows_aarch64_msvc", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
-    { crate = "windows_i686_gnu", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
-    { crate = "windows_i686_msvc", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
-    { crate = "windows_x86_64_gnu", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
-    { crate = "windows_x86_64_gnullvm", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
-    { crate = "windows_x86_64_msvc", reason = "Wrapper lib. A LOT of stuff uses various old versions" },
-    { crate = "redox_users@0.4.6", reason = "tray-icon and native-dialog uses old version" },
     { crate = "thiserror@1.0.69", reason = "A derive macro for Error. A LOT of stuff uses old version" },
     { crate = "thiserror-impl@1.0.69", reason = "A derive macro for Error. A LOT of stuff uses old version" },
+    { crate = "getrandom@0.2", reason = "used by dirs" },
+    { crate = "rustix@0.38", reason = "used by winit, softbuffer, native-dialog" },
+    { crate = "wasi@0.11", reason = "used by dirs, directories" },
 ]
 # Similarly to `skip` allows you to skip certain crates during duplicate
 # detection. Unlike skip, it also includes the entire tree of transitive
@@ -248,12 +241,23 @@ skip-tree = [
     #"ansi_term@0.11.0", # will be skipped along with _all_ of its direct and transitive dependencies
     #{ crate = "ansi_term@0.11.0", depth = 20 },
 
-    # Allow build-only dependencies. Who cares if they're duped?
-    { name = "winres" },
-    { name = "ico" },
+    # Windows bindings have giant obnoxious trees of custom dependencies
+    { crate = "windows-sys@0.45", reason = "used by winit" },
+    { crate = "windows-sys@0.52", reason = "used by winit" },
+    { crate = "windows-sys@0.59", reason = "used by winit, tray-icon, native-dialog" },
+    { crate = "windows-targets@0.48", reason = "used by winit, softbuffer" },
 
-    # Allow built-time-eval'd macros
-    { name = "proc-macro-crate" },
+    # block2/objc2 also has a big tree of custom deps
+    { crate = "block2@0.5", reason = "used by winit" },
+    { crate = "objc2-app-kit@0.2", reason = "used by winit" },
+    { crate = "objc2-quartz-core@0.2", reason = "used by winit" },
+
+    # Allow build-only dependencies. Who cares if they're duped?
+    { crate = "winres" },
+    { crate = "ico" },
+
+    # Allow build-time-eval'd macros
+    { crate = "proc-macro-crate" },
 ]
 
 # This section is considered when running `cargo deny check sources`.
