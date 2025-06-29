@@ -5,9 +5,9 @@
 #[cfg(target_os = "linux")]
 use debug_print::debug_println;
 use tray_icon::menu::{CheckMenuItem, IsMenuItem, MenuItem, Result as MenuResult, Submenu};
-use tray_icon::{menu::Menu, TrayIcon, TrayIconBuilder};
+use tray_icon::{TrayIcon, TrayIconBuilder, menu::Menu};
 
-use crate::{build_constants, ICON_TOOLTIP};
+use crate::{ICON_TOOLTIP, build_constants};
 
 pub fn build_tray_icon() -> (MenuItems, TrayIcon) {
     // on linux we have to do this in a completely different way

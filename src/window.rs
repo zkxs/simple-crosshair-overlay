@@ -6,9 +6,9 @@ use std::num::NonZeroU32;
 use std::rc::Rc;
 
 use debug_print::debug_println;
+use tray_icon::TrayIcon;
 use tray_icon::dpi::{PhysicalPosition, PhysicalSize};
 use tray_icon::menu::{MenuEvent, MenuEventReceiver};
-use tray_icon::TrayIcon;
 use winit::application::ApplicationHandler;
 use winit::event::{DeviceEvent, DeviceId, ElementState, MouseButton, StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
@@ -16,7 +16,7 @@ use winit::window::{CursorIcon, Window, WindowId, WindowLevel};
 
 use simple_crosshair_overlay::private::platform;
 use simple_crosshair_overlay::private::platform::HotkeyManager;
-use simple_crosshair_overlay::private::settings::{RenderMode, Settings, CONFIG_PATH};
+use simple_crosshair_overlay::private::settings::{CONFIG_PATH, RenderMode, Settings};
 use simple_crosshair_overlay::private::util::dialog::DialogWorker;
 use simple_crosshair_overlay::private::util::{dialog, image};
 

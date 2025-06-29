@@ -8,9 +8,9 @@ use std::fmt::Debug;
 
 pub use generic::HotkeyManager;
 #[cfg(not(target_os = "windows"))]
-pub use generic::{get_foreground_window, set_foreground_window, WindowHandle};
+pub use generic::{WindowHandle, get_foreground_window, set_foreground_window};
 #[cfg(target_os = "windows")]
-pub use windows::{get_foreground_window, set_foreground_window, WindowHandle};
+pub use windows::{WindowHandle, get_foreground_window, set_foreground_window};
 
 use crate::private::hotkey::Keycode;
 

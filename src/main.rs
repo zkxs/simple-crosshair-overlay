@@ -11,8 +11,8 @@ use winit::event_loop::{DeviceEvents, EventLoop};
 use winit::window::{CursorGrabMode, Window};
 
 use simple_crosshair_overlay::private::platform;
-use simple_crosshair_overlay::private::settings::Settings;
 use simple_crosshair_overlay::private::settings::CONFIG_PATH;
+use simple_crosshair_overlay::private::settings::Settings;
 use simple_crosshair_overlay::private::util::dialog;
 
 mod tray;
@@ -64,9 +64,11 @@ fn start_tick_sender(settings: &Settings, event_loop: &EventLoop<window::UserEve
     let key_process_interval = settings.tick_interval;
     std::thread::Builder::new()
         .name("tick-sender".to_string())
-        .spawn(move || loop {
-            let _ = user_event_sender.send_event(());
-            std::thread::sleep(key_process_interval);
+        .spawn(move || {
+            loop {
+                let _ = user_event_sender.send_event(());
+                std::thread::sleep(key_process_interval);
+            }
         })
         .unwrap(); // if we fail to spawn a thread something is super wrong and we ought to panic
 }

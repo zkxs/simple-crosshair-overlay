@@ -25,11 +25,7 @@ impl DivCeil for usize {
     fn div_ceil_placeholder(&self, rhs: Self) -> Self {
         let quotient = self / rhs;
         let remainder = self % rhs;
-        if remainder > 0 {
-            quotient + 1
-        } else {
-            quotient
-        }
+        if remainder > 0 { quotient + 1 } else { quotient }
     }
 }
 
@@ -38,11 +34,7 @@ impl DivCeil for u32 {
     fn div_ceil_placeholder(&self, rhs: Self) -> Self {
         let quotient = self / rhs;
         let remainder = self % rhs;
-        if remainder > 0 {
-            quotient + 1
-        } else {
-            quotient
-        }
+        if remainder > 0 { quotient + 1 } else { quotient }
     }
 }
 
@@ -51,11 +43,7 @@ impl DivCeil for u64 {
     fn div_ceil_placeholder(&self, rhs: u64) -> u64 {
         let quotient = self / rhs;
         let remainder = self % rhs;
-        if remainder > 0 {
-            quotient + 1
-        } else {
-            quotient
-        }
+        if remainder > 0 { quotient + 1 } else { quotient }
     }
 }
 

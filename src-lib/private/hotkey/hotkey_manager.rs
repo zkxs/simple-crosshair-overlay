@@ -151,7 +151,9 @@ where
             if *lookup_table_mask == 0 {
                 // if the previous shift overflowed the mask will be zero
                 if *bit == 0 {
-                    return Err("Only 32 distinct keys may be used for hotkeys at this time. Congratulations if you're seeing this, as I didn't think anyone would be crazy enough to use that many keys.");
+                    return Err(
+                        "Only 32 distinct keys may be used for hotkeys at this time. Congratulations if you're seeing this, as I didn't think anyone would be crazy enough to use that many keys.",
+                    );
                 }
 
                 // generate a new mask and add to the table

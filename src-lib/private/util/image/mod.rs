@@ -276,7 +276,14 @@ where
     let info = reader.next_frame(buf_as_u8)?;
 
     if info.color_type != ColorType::Rgba {
-        Err(io::Error::new(io::ErrorKind::InvalidInput, format!("PNG was in {:?} format. Only {:?} format is supported. Please re-save your PNG in the required format.", info.color_type, ColorType::Rgba)))?;
+        Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "PNG was in {:?} format. Only {:?} format is supported. Please re-save your PNG in the required format.",
+                info.color_type,
+                ColorType::Rgba
+            ),
+        ))?;
     }
 
     // post-process color layout in each pixel

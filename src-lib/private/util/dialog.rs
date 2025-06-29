@@ -1,6 +1,6 @@
 use std::path::PathBuf;
-use std::sync::mpsc;
 use std::sync::Mutex;
+use std::sync::mpsc;
 use std::thread::JoinHandle;
 
 use lazy_static::lazy_static;
