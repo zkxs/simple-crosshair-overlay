@@ -34,7 +34,7 @@ serde = { version = "1", features = ["derive"] }
 toml = "0.8.12"
 directories = "6"
 lazy_static = "1"
-native-dialog = "0.7"
+native-dialog = "0.9"
 debug_print = "1"
 png = "0.17"
 device_query = "=3.0.0" # pinned to 3.0.0 because 3.0.1 contains a breaking change

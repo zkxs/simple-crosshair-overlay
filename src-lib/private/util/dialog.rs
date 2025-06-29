@@ -1,10 +1,14 @@
+// This file is part of simple-crosshair-overlay and is licenced under the GNU GPL v3.0.
+// See LICENSE file for full text.
+// Copyright © 2023-2025 Michael Ripley
+
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::sync::mpsc;
 use std::thread::JoinHandle;
 
 use lazy_static::lazy_static;
-use native_dialog::{FileDialog, MessageDialog, MessageType};
+use native_dialog::{DialogBuilder, MessageLevel};
 
 lazy_static! {
 
@@ -82,28 +86,31 @@ pub fn spawn_worker() -> DialogWorker {
                 // block waiting for a file read request
                 match dialog_request_receiver.recv().unwrap() {
                     DialogRequest::PngPath => {
-                        let path = FileDialog::new()
-                            .add_filter("PNG Image", &["png"])
-                            .show_open_single_file()
+                        let path = DialogBuilder::file()
+                            .add_filter("PNG Image", ["png"])
+                            .open_single_file()
+                            .show()
                             .ok()
                             .flatten();
 
                         let _ = file_path_sender.send(path);
                     }
                     DialogRequest::Info(text) => {
-                        MessageDialog::new()
-                            .set_type(MessageType::Info)
+                        DialogBuilder::message()
+                            .set_level(MessageLevel::Info)
                             .set_title("Simple Crosshair Overlay")
                             .set_text(&text)
-                            .show_alert()
+                            .alert()
+                            .show()
                             .unwrap();
                     }
                     DialogRequest::Warning(text) => {
-                        MessageDialog::new()
-                            .set_type(MessageType::Warning)
+                        DialogBuilder::message()
+                            .set_level(MessageLevel::Warning)
                             .set_title("Simple Crosshair Overlay")
                             .set_text(&text)
-                            .show_alert()
+                            .alert()
+                            .show()
                             .unwrap();
                     }
                     DialogRequest::Terminate => break,
