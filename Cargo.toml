@@ -27,7 +27,7 @@ debug = true # required for `cargo flamegraph`, and makes `cargo-bloat` output s
 benchmark = [] # used to compile reference functions only needed for benchmarking against
 
 [dependencies]
-tray-icon = { version = "0.19", default-features = false }
+tray-icon = { version = "0.21", default-features = false }
 winit = "0.30"
 softbuffer = "0.4"
 serde = { version = "1", features = ["derive"] }
