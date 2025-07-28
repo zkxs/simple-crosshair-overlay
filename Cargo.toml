@@ -31,7 +31,7 @@ tray-icon = { version = "0.21", default-features = false }
 winit = "0.30"
 softbuffer = "0.4"
 serde = { version = "1", features = ["derive"] }
-toml = "0.8.12"
+toml = "0.9.2"
 directories = "6"
 lazy_static = "1"
 native-dialog = "0.9"
@@ -50,7 +50,7 @@ winres = "0.1"
 ico = "0.4"
 
 [dev-dependencies]
-criterion = "0.6"
+criterion = "0.7"
 
 [[bench]]
 name = "benches"
