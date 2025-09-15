@@ -31,12 +31,12 @@ tray-icon = { version = "0.21", default-features = false }
 winit = "0.30"
 softbuffer = "0.4"
 serde = { version = "1", features = ["derive"] }
-toml = "0.8.12"
+toml = "0.9.5"
 directories = "6"
 lazy_static = "1"
 native-dialog = "0.9"
 debug_print = "1"
-png = "0.17"
+png = "0.18"
 device_query = "=3.0.0" # pinned to 3.0.0 because 3.0.1 contains a breaking change
 
 [target.'cfg(target_os = "windows")'.dependencies]
@@ -50,7 +50,7 @@ winres = "0.1"
 ico = "0.4"
 
 [dev-dependencies]
-criterion = "0.6"
+criterion = "0.7"
 
 [[bench]]
 name = "benches"
