@@ -20,7 +20,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/') || (startsWith(github.ref, 'refs/heads/') && !startsWith(github.ref, 'refs/heads/dependabot/'))
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: EmbarkStudios/cargo-deny-action@v2
   cargo-fmt:
     # only run for pushes to tags or non-dependabot branches
@@ -33,7 +33,7 @@ jobs:
         run: rustup component add cargo
       - name: Install Clippy
         run: rustup component add rustfmt
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Format
         run: cargo fmt --check
   build:
@@ -87,7 +87,7 @@ jobs:
       - name: Install nightly rust-src
         run: rustup component add rust-src --toolchain nightly
       - name: git checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup workflow cache
         uses: actions/cache@v4
         with:
