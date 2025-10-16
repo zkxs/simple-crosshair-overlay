@@ -6,6 +6,7 @@
 
 use std::fs::File;
 use std::io;
+use std::io::BufReader;
 use std::path::Path;
 
 use png::ColorType;
@@ -242,8 +243,10 @@ pub fn load_png<T>(path: T) -> io::Result<Box<Image>>
 where
     T: AsRef<Path>,
 {
+    static HUMONGOUS_PNG_MESSAGE: &str = "PNG does not fit into the memory space of the machine";
     let file = File::open(path)?;
-    let decoder = png::Decoder::new(file);
+    let bufread = BufReader::new(file);
+    let decoder = png::Decoder::new(bufread);
     let mut reader = decoder.read_info()?;
 
     // The PNG decoder wants a u8 buffer to store its RGBA data... but winit wants ARGB u32 data.
@@ -251,7 +254,12 @@ where
     // This is done because it's not safe to cast a &[u8] into a &[u32] due to possible u32 misalignment,
     // however it is completely safe to cast a &[u32] into a &[u8].
     const RATIO: usize = size_of::<u32>() / size_of::<u8>(); // this is going to be 4 always, but it's good practice to not use a magic number here
-    let mut buf_as_u32: Vec<u32> = Vec::with_capacity(reader.output_buffer_size().div_ceil_placeholder(RATIO));
+    let mut buf_as_u32: Vec<u32> = Vec::with_capacity(
+        reader
+            .output_buffer_size()
+            .expect(HUMONGOUS_PNG_MESSAGE)
+            .div_ceil_placeholder(RATIO),
+    );
     #[allow(clippy::uninit_vec)]
     unsafe {
         // there is no requirement I send a zeroed buffer to the PNG decoding library.
@@ -260,7 +268,7 @@ where
 
     // a little check to make sure div_ceil isn't fucked up. Which it's definitely not, because I eyeballed it really sternly.
     debug_assert!(
-        buf_as_u32.len() * RATIO >= reader.output_buffer_size(),
+        buf_as_u32.len() * RATIO >= reader.output_buffer_size().expect(HUMONGOUS_PNG_MESSAGE),
         "buffer was unexpectedly not large enough for image decode"
     );
 
