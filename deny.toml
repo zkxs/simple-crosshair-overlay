@@ -102,7 +102,7 @@ allow = [
     "Apache-2.0",
     "BSD-2-Clause",
     "BSD-3-Clause",
-    "GPL-3.0",
+    "GPL-3.0-only",
     "ISC",
     "MIT",
     "Zlib",
@@ -231,7 +231,6 @@ skip = [
     { crate = "thiserror-impl@1.0.69", reason = "A derive macro for Error. A LOT of stuff uses old version" },
     { crate = "getrandom@0.2", reason = "used by dirs" },
     { crate = "rustix@0.38", reason = "used by winit, softbuffer, native-dialog" },
-    { crate = "wasi@0.11", reason = "used by dirs, directories" },
 ]
 # Similarly to `skip` allows you to skip certain crates during duplicate
 # detection. Unlike skip, it also includes the entire tree of transitive
@@ -244,7 +243,8 @@ skip-tree = [
     # Windows bindings have giant obnoxious trees of custom dependencies
     { crate = "windows-sys@0.45", reason = "used by winit" },
     { crate = "windows-sys@0.52", reason = "used by winit" },
-    { crate = "windows-sys@0.59", reason = "used by winit, tray-icon, native-dialog" },
+    { crate = "windows-sys@0.59", reason = "used by winit, native-dialog" },
+    { crate = "windows-sys@0.60", reason = "used by tray-icon" },
     { crate = "windows-targets@0.48", reason = "used by winit, softbuffer" },
 
     # block2/objc2 also has a big tree of custom deps
