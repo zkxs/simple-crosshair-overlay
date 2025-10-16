@@ -31,7 +31,7 @@ tray-icon = { version = "0.21", default-features = false }
 winit = "0.30"
 softbuffer = "0.4"
 serde = { version = "1", features = ["derive"] }
-toml = "0.8.12" # intentionally held back because a bunch of dependencies use this old version
+toml = "0.9.8" # intentionally held back because a bunch of dependencies use this old version
 directories = "6"
 lazy_static = "1"
 native-dialog = "0.9"
