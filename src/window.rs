@@ -400,7 +400,7 @@ fn draw_window(surface: &mut Surface, settings: &Settings, force: bool) {
                     }
 
                     // second horizontal line (if size is even we need this for centering)
-                    if height % 2 == 0 {
+                    if height.is_multiple_of(2) {
                         let start = start - width;
                         for x in start..start + width {
                             buffer[x] = settings.color;
@@ -413,7 +413,7 @@ fn draw_window(surface: &mut Surface, settings: &Settings, force: bool) {
                     }
 
                     // second vertical line (if size is even we need this for centering)
-                    if width % 2 == 0 {
+                    if width.is_multiple_of(2) {
                         for y in 0..height {
                             buffer[width * y + width / 2 - 1] = settings.color;
                         }
