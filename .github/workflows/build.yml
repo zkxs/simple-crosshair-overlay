@@ -111,7 +111,7 @@ jobs:
       - name: Build
         run: cargo +nightly build -Z build-std=std --release --target ${{ matrix.target.triple }}
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: simple-crosshair-overlay-${{ matrix.target.triple }}
           path: ./target/${{ matrix.target.triple }}/release/simple-crosshair-overlay${{ matrix.target.suffix }}
