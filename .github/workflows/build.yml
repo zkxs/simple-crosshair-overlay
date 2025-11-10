@@ -124,7 +124,7 @@ jobs:
           file "${{ runner.temp }}${{ matrix.target.path-separator }}simple-crosshair-overlay${{ matrix.target.artifact-suffix }}${{ matrix.target.suffix }}"
         shell: bash
       - name: Upload release artifact
-        uses: softprops/action-gh-release@v2.3.4
+        uses: softprops/action-gh-release@v2.4.2
         if: startsWith(github.ref, 'refs/tags/') # only run for pushes to tags
         with:
           draft: true
