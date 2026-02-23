@@ -37,7 +37,7 @@ lazy_static = "1"
 native-dialog = "0.9"
 debug_print = "1"
 png = "0.18"
-device_query = "=3.0.0" # pinned to 3.0.0 because 3.0.1 contains a breaking change
+device_query = "=4.0.1" # pinned to 3.0.0 because 3.0.1 contains a breaking change
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3", features = ["winuser", "windef", "minwindef"] }
