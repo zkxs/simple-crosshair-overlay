@@ -50,7 +50,7 @@ winres = "0.1"
 ico = "0.4"
 
 [dev-dependencies]
-criterion = "0.7"
+criterion = "0.8"
 
 [[bench]]
 name = "benches"
