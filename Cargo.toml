@@ -47,7 +47,7 @@ gtk = "0.18" # must use this version of gtk because it's what tray-icon 0.10 nee
 
 [build-dependencies]
 winres = "0.1"
-ico = "0.4"
+ico = "0.5"
 
 [dev-dependencies]
 criterion = "0.7"
